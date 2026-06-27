@@ -142,6 +142,16 @@ setup_env_files() {
   done
 }
 
+fix_deploy_root_ownership() {
+  local deploy_user="${SUDO_USER:-${DEPLOY_USER:-}}"
+  if [[ -z "$deploy_user" || "$deploy_user" == "root" ]]; then
+    return
+  fi
+
+  log "Setting ownership of ${DEPLOY_ROOT} to ${deploy_user}"
+  chown -R "${deploy_user}:${deploy_user}" "${DEPLOY_ROOT}"
+}
+
 print_next_steps() {
   cat <<EOF
 
@@ -185,6 +195,7 @@ main() {
   create_directories
   create_docker_network
   setup_env_files
+  fix_deploy_root_ownership
   print_next_steps
 }
 
