@@ -1,0 +1,15 @@
+http://{$DRUPAL_HOST:drupal.localhost} {
+	reverse_proxy drupal:80
+}
+
+http://{$FRESHRSS_HOST:freshrss.localhost} {
+	reverse_proxy freshrss:80
+}
+
+http://{$FEEDS_HOST:feeds.localhost} {
+	reverse_proxy static-server:80
+}
+
+http://{$BLOG_HOST:blog.localhost} {
+	reverse_proxy go-blog:8083
+}
