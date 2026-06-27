@@ -8,6 +8,8 @@ const freshrssPort = process.env.FRESHRSS_HTTP_PORT ?? '8081';
 
 const drupalUrl = `http://127.0.0.1:${drupalPort}`;
 const freshrssUrl = `http://127.0.0.1:${freshrssPort}`;
+const goBlogPort = process.env.GO_BLOG_HTTP_PORT ?? '8083';
+const goBlogUrl = `http://127.0.0.1:${goBlogPort}`;
 
 const manifestPath = process.env.STATIC_SERVER_CONTENT_DIR
   ? path.join(process.env.STATIC_SERVER_CONTENT_DIR, 'manifest.json')
@@ -158,5 +160,32 @@ test.describe('Infrastructure stack', () => {
     for (const article of feed.articles) {
       await expect(page.locator('body')).toContainText(article.title, { timeout: 30_000 });
     }
+  });
+
+  test('go-blog serves the homepage', async ({ page }) => {
+    const response = await page.goto(`${goBlogUrl}/`, { waitUntil: 'domcontentloaded' });
+
+    expect(response?.ok()).toBeTruthy();
+    await expect(page).toHaveTitle(/Go Blog/i);
+    await expect(page.locator('body')).toContainText(/Go Blog/i);
+  });
+
+  test('go-blog admin login page is available', async ({ page }) => {
+    await page.goto(`${goBlogUrl}/login`, { waitUntil: 'domcontentloaded' });
+
+    await expect(page.locator('#username')).toBeVisible();
+    await expect(page.locator('#password')).toBeVisible();
+    await expect(page.getByRole('button', { name: /login/i })).toBeVisible();
+  });
+
+  test('go-blog admin can log in', async ({ page }) => {
+    await page.goto(`${goBlogUrl}/login`, { waitUntil: 'domcontentloaded' });
+
+    await page.locator('#username').fill('admin');
+    await page.locator('#password').fill('admin');
+    await page.getByRole('button', { name: /login/i }).click();
+
+    await expect(page).toHaveURL(/\/admin/);
+    await expect(page.locator('body')).toContainText(/Dashboard|Logout/i);
   });
 });
