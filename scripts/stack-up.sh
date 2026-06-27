@@ -179,9 +179,6 @@ main() {
   compose_up go-blog
   wait_for_container go-blog
 
-  log "Installing Drupal via Drush"
-  DEPLOY_ROOT="${STACK_ROOT}" REPO_DIR="${REPO_DIR}" bash "${REPO_DIR}/scripts/install-drupal.sh"
-
   log "Stack is ready"
 }
 
