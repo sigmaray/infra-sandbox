@@ -1,6 +1,7 @@
 services:
   drupal:
-    image: drupal:10-apache
+    build: .
+    image: infra-drupal:10-apache
     container_name: drupal
     restart: unless-stopped
     ports:

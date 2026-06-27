@@ -36,7 +36,7 @@ FRESHRSS_DB_PASSWORD=test-freshrss-db
 EOF
 
   cat > "${STACK_ROOT}/drupal/.env" <<EOF
-DRUPAL_SITE_NAME=My Drupal Site
+DRUPAL_SITE_NAME="My Drupal Site"
 DRUPAL_ADMIN_USER=admin
 DRUPAL_ADMIN_PASSWORD=test-admin
 DRUPAL_ADMIN_EMAIL=admin@example.com
@@ -91,7 +91,11 @@ ensure_network() {
 compose_up() {
   local project="$1"
   log "Starting ${project}"
-  (cd "${STACK_ROOT}/${project}" && docker compose up -d)
+  if [[ "${project}" == "drupal" ]]; then
+    (cd "${STACK_ROOT}/${project}" && docker compose up -d --build)
+  else
+    (cd "${STACK_ROOT}/${project}" && docker compose up -d)
+  fi
 }
 
 wait_for_postgres() {
@@ -156,8 +160,8 @@ main() {
   compose_up freshrss
   wait_for_container freshrss
 
-  log "Installing Drupal via web installer"
-  DEPLOY_ROOT="${STACK_ROOT}" npx --yes tsx "${REPO_DIR}/scripts/install-drupal.mts"
+  log "Installing Drupal via Drush"
+  DEPLOY_ROOT="${STACK_ROOT}" REPO_DIR="${REPO_DIR}" bash "${REPO_DIR}/scripts/install-drupal.sh"
 
   log "Stack is ready"
 }
