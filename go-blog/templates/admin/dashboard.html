@@ -1,0 +1,35 @@
+{{ define "admin/dashboard.html" }}
+{{ template "admin/header.html" . }}
+
+<h2>Admin Dashboard</h2>
+
+<div style="margin-bottom: 20px;">
+    <a href="/admin/posts/new" class="btn">Create New Post</a>
+</div>
+
+<h3>Recent Posts</h3>
+<table style="width: 100%; border-collapse: collapse;">
+    <thead>
+        <tr style="background: #f5f5f5;">
+            <th style="padding: 10px; text-align: left; border-bottom: 1px solid #ddd;">ID</th>
+            <th style="padding: 10px; text-align: left; border-bottom: 1px solid #ddd;">Title</th>
+            <th style="padding: 10px; text-align: left; border-bottom: 1px solid #ddd;">Date</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{ range .Posts }}
+        <tr>
+            <td style="padding: 10px; border-bottom: 1px solid #ddd;">{{ .ID }}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #ddd;">{{ if .Title }}{{ .Title }}{{ else }}<em>Untitled</em>{{ end }}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #ddd;">{{ .CreatedAt.Format "2006-01-02 15:04" }}</td>
+        </tr>
+        {{ else }}
+        <tr>
+            <td colspan="3" style="padding: 10px; text-align: center;">No posts found.</td>
+        </tr>
+        {{ end }}
+    </tbody>
+</table>
+
+{{ template "admin/footer.html" . }}
+{{ end }}

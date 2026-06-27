@@ -1,0 +1,40 @@
+{{ define "public/index.html" }}
+{{ template "public/header.html" . }}
+
+{{ if .Tag }}
+    <h3>Showing posts for tag: {{ .Tag }}</h3>
+    <a href="/">Clear filter</a>
+{{ end }}
+
+{{ range .Posts }}
+<div class="post">
+    {{ if .Title }}
+        <h3 class="post-title">{{ .Title }}</h3>
+    {{ end }}
+    <div class="post-date">{{ .CreatedAt.Format "Jan 02, 2006 15:04" }}</div>
+    <div class="post-content">
+        <p>{{ .Content }}</p>
+    </div>
+    {{ if .Tags }}
+    <div class="tags">
+        {{ range .Tags }}
+            <a href="/?tag={{ .Name }}" class="tag">{{ .Name }}</a>
+        {{ end }}
+    </div>
+    {{ end }}
+</div>
+{{ else }}
+    <p>No posts found.</p>
+{{ end }}
+
+<div class="pagination">
+    {{ if gt .Page 1 }}
+        <a href="/?page={{ subtract .Page 1 }}{{ if $.Tag }}&tag={{ $.Tag }}{{ end }}">Previous</a>
+    {{ end }}
+    {{ if .HasNext }}
+        <a href="/?page={{ add .Page 1 }}{{ if $.Tag }}&tag={{ $.Tag }}{{ end }}">Next</a>
+    {{ end }}
+</div>
+
+{{ template "public/footer.html" . }}
+{{ end }}
