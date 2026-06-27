@@ -1,0 +1,32 @@
+{{ define "public/header.html" }}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Go Blog</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .post { border: 1px solid #ddd; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
+        .post-title { margin-top: 0; }
+        .post-date { color: #888; font-size: 0.9em; }
+        .tags { margin-top: 10px; }
+        .tag { background: #eee; padding: 3px 8px; border-radius: 3px; font-size: 0.8em; text-decoration: none; color: #333; }
+        .pagination { margin-top: 20px; display: flex; gap: 10px; }
+        .pagination a { padding: 5px 10px; background: #f0f0f0; text-decoration: none; border-radius: 3px; color: #333; }
+        nav { margin-bottom: 20px; display: flex; justify-content: space-between; }
+    </style>
+</head>
+<body>
+    <nav>
+        <h2><a href="/" style="text-decoration: none; color: inherit;">Go Blog</a></h2>
+        <div>
+            <a href="/login">Login</a>
+        </div>
+    </nav>
+{{ end }}
+
+{{ define "public/footer.html" }}
+</body>
+</html>
+{{ end }}

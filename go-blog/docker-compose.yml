@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  go-blog:
+    build: .
+    ports:
+      - "8083:8083"
+    volumes:
+      - blog_data:/app/data
+    restart: unless-stopped
+
+volumes:
+  blog_data:
