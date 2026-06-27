@@ -2,6 +2,7 @@ import { defineConfig } from '@playwright/test';
 
 const drupalPort = process.env.DRUPAL_HTTP_PORT ?? '8080';
 const freshrssPort = process.env.FRESHRSS_HTTP_PORT ?? '8081';
+const staticServerPort = process.env.STATIC_SERVER_HTTP_PORT ?? '8082';
 
 export default defineConfig({
   testDir: './tests',
@@ -25,5 +26,6 @@ export default defineConfig({
   metadata: {
     drupalPort,
     freshrssPort,
+    staticServerPort,
   },
 });

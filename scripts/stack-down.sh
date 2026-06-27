@@ -19,6 +19,7 @@ down_project() {
 main() {
   down_project freshrss
   down_project drupal
+  down_project static-server
   down_project postgresql
   log "Stack stopped"
 }

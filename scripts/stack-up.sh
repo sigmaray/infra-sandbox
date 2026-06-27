@@ -8,6 +8,7 @@ REPO_DIR="${REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 DOCKER_NETWORK="${DOCKER_NETWORK:-projects-net}"
 DRUPAL_PORT="${DRUPAL_HTTP_PORT:-8080}"
 FRESHRSS_PORT="${FRESHRSS_HTTP_PORT:-8081}"
+STATIC_SERVER_PORT="${STATIC_SERVER_HTTP_PORT:-8082}"
 POSTGRES_WAIT_TIMEOUT="${POSTGRES_WAIT_TIMEOUT:-120}"
 CONTAINER_WAIT_TIMEOUT="${CONTAINER_WAIT_TIMEOUT:-120}"
 
@@ -65,6 +66,16 @@ FRESHRSS_LANGUAGE=en
 
 FRESHRSS_HTTP_PORT=${FRESHRSS_PORT}
 EOF
+
+  cat > "${REPO_DIR}/static-server/.env" <<EOF
+STATIC_SERVER_HTTP_PORT=${STATIC_SERVER_PORT}
+EOF
+}
+
+generate_test_feeds() {
+  log "Generating test RSS feeds"
+  STATIC_SERVER_HTTP_PORT="${STATIC_SERVER_PORT}" \
+    npx --yes tsx "${REPO_DIR}/scripts/generate-test-feeds.mts"
 }
 
 ensure_network() {
@@ -131,6 +142,11 @@ main() {
   compose_up postgresql
   wait_for_postgres
   verify_postgres_databases
+
+  generate_test_feeds
+
+  compose_up static-server
+  wait_for_container static-server
 
   compose_up drupal
   wait_for_container drupal
