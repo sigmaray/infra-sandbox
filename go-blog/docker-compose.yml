@@ -3,11 +3,19 @@ version: '3.8'
 services:
   go-blog:
     build: .
+    container_name: go-blog
     ports:
-      - "8083:8083"
+      - "${GO_BLOG_HTTP_PORT:-8083}:8083"
     volumes:
       - blog_data:/app/data
     restart: unless-stopped
+    networks:
+      - projects-net
 
 volumes:
   blog_data:
+
+networks:
+  projects-net:
+    external: true
+    name: projects-net

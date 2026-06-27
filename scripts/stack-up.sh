@@ -10,6 +10,7 @@ DOCKER_NETWORK="${DOCKER_NETWORK:-projects-net}"
 DRUPAL_PORT="${DRUPAL_HTTP_PORT:-8080}"
 FRESHRSS_PORT="${FRESHRSS_HTTP_PORT:-8081}"
 STATIC_SERVER_PORT="${STATIC_SERVER_HTTP_PORT:-8082}"
+GO_BLOG_PORT="${GO_BLOG_HTTP_PORT:-8083}"
 POSTGRES_WAIT_TIMEOUT="${POSTGRES_WAIT_TIMEOUT:-120}"
 CONTAINER_WAIT_TIMEOUT="${CONTAINER_WAIT_TIMEOUT:-120}"
 
@@ -70,6 +71,10 @@ EOF
 
   cat > "${STACK_ROOT}/static-server/.env" <<EOF
 STATIC_SERVER_HTTP_PORT=${STATIC_SERVER_PORT}
+EOF
+
+  cat > "${STACK_ROOT}/go-blog/.env" <<EOF
+GO_BLOG_HTTP_PORT=${GO_BLOG_PORT}
 EOF
 }
 
@@ -159,6 +164,9 @@ main() {
 
   compose_up freshrss
   wait_for_container freshrss
+
+  compose_up go-blog
+  wait_for_container go-blog
 
   log "Installing Drupal via Drush"
   DEPLOY_ROOT="${STACK_ROOT}" REPO_DIR="${REPO_DIR}" bash "${REPO_DIR}/scripts/install-drupal.sh"
