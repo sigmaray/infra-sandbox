@@ -1,0 +1,45 @@
+services:
+  freshrss:
+    image: freshrss/freshrss:latest
+    container_name: freshrss
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      TZ: ${TZ:-UTC}
+      CRON_MIN: ${CRON_MIN:-*/15}
+      FRESHRSS_INSTALL: |-
+        --api-enabled
+        --base-url ${FRESHRSS_BASE_URL}
+        --db-base ${FRESHRSS_DB_NAME}
+        --db-host shared-postgres
+        --db-password ${FRESHRSS_DB_PASSWORD}
+        --db-type pgsql
+        --db-user ${FRESHRSS_DB_USER}
+        --default-user ${FRESHRSS_ADMIN_USER}
+        --language ${FRESHRSS_LANGUAGE:-en}
+      FRESHRSS_USER: |-
+        --api-password ${FRESHRSS_API_PASSWORD}
+        --email ${FRESHRSS_ADMIN_EMAIL}
+        --language ${FRESHRSS_LANGUAGE:-en}
+        --password ${FRESHRSS_ADMIN_PASSWORD}
+        --user ${FRESHRSS_ADMIN_USER}
+    ports:
+      - "${FRESHRSS_HTTP_PORT:-8081}:80"
+    volumes:
+      - freshrss_data:/var/www/FreshRSS/data
+      - freshrss_extensions:/var/www/FreshRSS/extensions
+    networks:
+      - projects-net
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+volumes:
+  freshrss_data:
+  freshrss_extensions:
+
+networks:
+  projects-net:
+    external: true
+    name: projects-net
