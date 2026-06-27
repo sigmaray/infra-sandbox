@@ -175,6 +175,9 @@ Start services in order:
   4. Static RSS server (for tests):
      cd ${DEPLOY_ROOT}/static-server && docker compose up -d
 
+  5. Go Blog:
+     cd ${DEPLOY_ROOT}/go-blog && docker compose up -d
+
 Edit .env files in each directory and set strong passwords before production use.
 Re-login (or run 'newgrp docker') if you were added to the docker group.
 
