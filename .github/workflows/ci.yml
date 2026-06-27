@@ -6,13 +6,12 @@ on:
   pull_request:
     branches: [master, main]
 
-env:
-  DEPLOY_ROOT: ${{ runner.temp }}/infra-deploy
-
 jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      DEPLOY_ROOT: ${{ runner.temp }}/infra-deploy
 
     steps:
       - name: Checkout
