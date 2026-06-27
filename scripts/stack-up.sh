@@ -86,12 +86,6 @@ GO_BLOG_DATABASE_PASSWORD=test-goblog-db
 EOF
 }
 
-generate_test_feeds() {
-  log "Generating test RSS feeds"
-  STACK_ROOT="${STACK_ROOT}" STATIC_SERVER_HTTP_PORT="${STATIC_SERVER_PORT}" \
-    npx --yes tsx "${REPO_DIR}/scripts/generate-test-feeds.mts"
-}
-
 ensure_network() {
   if docker network inspect "${DOCKER_NETWORK}" >/dev/null 2>&1; then
     log "Docker network '${DOCKER_NETWORK}' already exists"
@@ -164,8 +158,6 @@ main() {
   compose_up postgresql
   wait_for_postgres
   verify_postgres_databases
-
-  generate_test_feeds
 
   compose_up static-server
   wait_for_container static-server

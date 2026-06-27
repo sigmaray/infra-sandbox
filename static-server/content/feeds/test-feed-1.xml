@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Sandbox Feed 51aaa820-3ee8-447a-9240-adc0034d4603</title>
+    <link>http://static-server/</link>
+    <description>Generated test RSS feed for infra-sandbox</description>
+    <language>en</language>
+    <lastBuildDate>Sat, 27 Jun 2026 14:21:29 +0000</lastBuildDate>
+    <item>
+      <title>Golden Echo 4c8c</title>
+      <link>http://static-server/articles/911a8110-72d9-48bb-9761-634fb9f0a6d7</link>
+      <guid isPermaLink="false">911a8110-72d9-48bb-9761-634fb9f0a6d7</guid>
+      <pubDate>Sat, 27 Jun 2026 13:21:29 +0000</pubDate>
+      <description>Generated article body for Golden Echo 4c8c</description>
+    </item>
+    <item>
+      <title>Crimson Mirror d6b1</title>
+      <link>http://static-server/articles/fc3379ed-a44b-4718-8fcb-1de600983717</link>
+      <guid isPermaLink="false">fc3379ed-a44b-4718-8fcb-1de600983717</guid>
+      <pubDate>Sat, 27 Jun 2026 12:21:29 +0000</pubDate>
+      <description>Generated article body for Crimson Mirror d6b1</description>
+    </item>
+    <item>
+      <title>Crimson Harbor dff0</title>
+      <link>http://static-server/articles/8d3c2a16-e965-4c6a-a17e-611a130fb2e6</link>
+      <guid isPermaLink="false">8d3c2a16-e965-4c6a-a17e-611a130fb2e6</guid>
+      <pubDate>Sat, 27 Jun 2026 11:21:29 +0000</pubDate>
+      <description>Generated article body for Crimson Harbor dff0</description>
+    </item>
+  </channel>
+</rss>

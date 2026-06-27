@@ -1,0 +1,33 @@
+{
+  "feeds": [
+    {
+      "fileName": "test-feed-1.xml",
+      "channelTitle": "Sandbox Feed 51aaa820-3ee8-447a-9240-adc0034d4603",
+      "feedUrl": "http://static-server/feeds/test-feed-1.xml",
+      "hostFeedUrl": "http://127.0.0.1:8082/feeds/test-feed-1.xml",
+      "articles": [
+        {
+          "guid": "911a8110-72d9-48bb-9761-634fb9f0a6d7",
+          "title": "Golden Echo 4c8c",
+          "link": "http://static-server/articles/911a8110-72d9-48bb-9761-634fb9f0a6d7",
+          "pubDate": "Sat, 27 Jun 2026 13:21:29 +0000",
+          "description": "Generated article body for Golden Echo 4c8c"
+        },
+        {
+          "guid": "fc3379ed-a44b-4718-8fcb-1de600983717",
+          "title": "Crimson Mirror d6b1",
+          "link": "http://static-server/articles/fc3379ed-a44b-4718-8fcb-1de600983717",
+          "pubDate": "Sat, 27 Jun 2026 12:21:29 +0000",
+          "description": "Generated article body for Crimson Mirror d6b1"
+        },
+        {
+          "guid": "8d3c2a16-e965-4c6a-a17e-611a130fb2e6",
+          "title": "Crimson Harbor dff0",
+          "link": "http://static-server/articles/8d3c2a16-e965-4c6a-a17e-611a130fb2e6",
+          "pubDate": "Sat, 27 Jun 2026 11:21:29 +0000",
+          "description": "Generated article body for Crimson Harbor dff0"
+        }
+      ]
+    }
+  ]
+}
