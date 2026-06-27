@@ -6,7 +6,7 @@
     "test:ui": "playwright test --ui",
     "stack:up": "bash scripts/stack-up.sh",
     "stack:down": "bash scripts/stack-down.sh",
-    "test:infra": "npm run stack:down && npm run stack:up && playwright test && npm run stack:down"
+    "test:infra": "npm run stack:down && npm run stack:up && SKIP_STACK_SETUP=1 playwright test && npm run stack:down"
   },
   "devDependencies": {
     "@playwright/test": "^1.52.0",
