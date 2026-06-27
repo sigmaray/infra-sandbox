@@ -75,6 +75,14 @@ EOF
 STATIC_SERVER_HTTP_PORT=${STATIC_SERVER_PORT}
 EOF
 
+  cat > "${STACK_ROOT}/reverse-proxy/.env" <<EOF
+DRUPAL_HOST=drupal.localhost
+FRESHRSS_HOST=freshrss.localhost
+FEEDS_HOST=feeds.localhost
+BLOG_HOST=blog.localhost
+CADDY_HTTP_PORT=80
+EOF
+
   cat > "${STACK_ROOT}/go-blog/.env" <<EOF
 GO_BLOG_HTTP_PORT=${GO_BLOG_PORT}
 
@@ -170,6 +178,9 @@ main() {
 
   compose_up go-blog
   wait_for_container go-blog
+
+  compose_up reverse-proxy
+  wait_for_container reverse-proxy
 
   log "Stack is ready"
 }

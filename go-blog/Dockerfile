@@ -16,6 +16,7 @@ WORKDIR /app
 RUN apk add --no-cache tzdata
 
 COPY --from=builder /app/blog .
+COPY --from=builder /app/templates ./templates
 
 EXPOSE 8083
 

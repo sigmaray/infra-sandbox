@@ -18,6 +18,7 @@ down_project() {
 }
 
 main() {
+  down_project reverse-proxy
   down_project go-blog
   down_project freshrss
   down_project drupal
