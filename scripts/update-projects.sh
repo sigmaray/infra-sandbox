@@ -15,7 +15,7 @@
 #   SKIP_GIT_PULL=1   Skip git fetch/pull (sync and restart only)
 #   SKIP_RESTART=1    Sync files only, do not restart containers
 #   FORCE_RESTART=1   Restart all projects even when nothing changed
-#   PULL_IMAGES=1     Pull upstream images before restarting (freshrss, postgresql, static-server)
+#   PULL_IMAGES=1     Pull upstream images before restarting (postgresql, freshrss, static-server, reverse-proxy)
 #   DRY_RUN=1         Print actions without changing anything
 #   PROJECTS          Space-separated subset to update (default: all)
 #
@@ -27,9 +27,9 @@ DOCKER_NETWORK="${DOCKER_NETWORK:-projects-net}"
 GIT_REMOTE="${GIT_REMOTE:-origin}"
 GIT_BRANCH="${GIT_BRANCH:-}"
 
-ALL_PROJECTS=(postgresql drupal freshrss static-server go-blog)
-BUILD_PROJECTS=(drupal go-blog)
-IMAGE_PROJECTS=(postgresql freshrss static-server)
+ALL_PROJECTS=(postgresql freshrss static-server go-blog reverse-proxy)
+BUILD_PROJECTS=(go-blog)
+IMAGE_PROJECTS=(postgresql freshrss static-server reverse-proxy)
 
 log() { printf '[update-projects] %s\n' "$*"; }
 die() { log "ERROR: $*"; exit 1; }
@@ -205,6 +205,14 @@ compose_up_project() {
   fi
 }
 
+remove_legacy_container() {
+  local name="$1"
+  if docker container inspect "${name}" >/dev/null 2>&1; then
+    log "Removing legacy container ${name}"
+    run docker rm -f "${name}"
+  fi
+}
+
 restart_projects() {
   local project
 
@@ -219,7 +227,7 @@ restart_projects() {
     compose_up_project postgresql
   fi
 
-  for project in static-server drupal freshrss go-blog; do
+  for project in static-server freshrss go-blog reverse-proxy; do
     project_is_selected "$project" || continue
     printf '%s\n' "${RESTART_PROJECTS[@]}" | grep -qx "$project" || continue
     compose_up_project "$project"
@@ -280,6 +288,7 @@ main() {
     log "SKIP_RESTART=1, skipping container restarts"
   else
     restart_projects
+    remove_legacy_container drupal
   fi
 
   fix_deploy_root_ownership

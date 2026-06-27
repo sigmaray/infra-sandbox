@@ -1,13 +1,6 @@
 import { expect, test } from '@playwright/test';
 
 test.describe('Caddy Reverse Proxy', () => {
-  test('Drupal is accessible via subdomain on port 80', async ({ request }) => {
-    const response = await request.get('http://drupal.localhost/');
-    expect(response.ok()).toBeTruthy();
-    const body = await response.text();
-    expect(body).toMatch(/Drupal|My Drupal Site/i);
-  });
-
   test('FreshRSS is accessible via subdomain on port 80', async ({ request }) => {
     const response = await request.get('http://freshrss.localhost/');
     expect(response.ok()).toBeTruthy();

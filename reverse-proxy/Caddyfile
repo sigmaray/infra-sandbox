@@ -1,7 +1,3 @@
-http://{$DRUPAL_HOST:drupal.localhost} {
-	reverse_proxy drupal:80
-}
-
 http://{$FRESHRSS_HOST:freshrss.localhost} {
 	reverse_proxy freshrss:80
 }

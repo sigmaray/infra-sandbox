@@ -2,8 +2,10 @@ import { execFileSync } from 'node:child_process';
 import { expect, test } from '@playwright/test';
 import { readFeedManifest } from './helpers/feed-manifest';
 
-const drupalPort = process.env.DRUPAL_HTTP_PORT ?? '8080';
-const drupalUrl = `http://127.0.0.1:${drupalPort}`;
+const freshrssPort = process.env.FRESHRSS_HTTP_PORT ?? '8081';
+const freshrssUrl = `http://127.0.0.1:${freshrssPort}`;
+const goBlogPort = process.env.GO_BLOG_HTTP_PORT ?? '8083';
+const goBlogUrl = `http://127.0.0.1:${goBlogPort}`;
 
 test.describe('Infrastructure stack', () => {
   test('PostgreSQL is healthy and databases are accessible', () => {
@@ -26,7 +28,7 @@ test.describe('Infrastructure stack', () => {
         '-d',
         'postgres',
         '-tAc',
-        "SELECT datname FROM pg_database WHERE datname IN ('drupal', 'freshrss', 'goblog') ORDER BY datname",
+        "SELECT datname FROM pg_database WHERE datname IN ('freshrss', 'goblog') ORDER BY datname",
       ],
       { encoding: 'utf8' },
     )
@@ -34,13 +36,7 @@ test.describe('Infrastructure stack', () => {
       .split('\n')
       .filter(Boolean);
 
-    expect(databases).toEqual(['drupal', 'freshrss', 'goblog']);
-
-    execFileSync(
-      'docker',
-      ['exec', 'shared-postgres', 'psql', '-U', 'drupal', '-d', 'drupal', '-c', 'SELECT 1'],
-      { stdio: 'pipe' },
-    );
+    expect(databases).toEqual(['freshrss', 'goblog']);
     execFileSync(
       'docker',
       ['exec', 'shared-postgres', 'psql', '-U', 'freshrss', '-d', 'freshrss', '-c', 'SELECT 1'],
@@ -53,20 +49,21 @@ test.describe('Infrastructure stack', () => {
     );
   });
 
-  test('Drupal serves the site homepage', async ({ page }) => {
-    const response = await page.goto(`${drupalUrl}/`, { waitUntil: 'domcontentloaded' });
+  test('FreshRSS serves the login page', async ({ page }) => {
+    const response = await page.goto(`${freshrssUrl}/`, { waitUntil: 'domcontentloaded' });
 
     expect(response?.ok()).toBeTruthy();
-    await expect(page).toHaveTitle(/My Drupal Site|Drupal/i);
-    await expect(page.locator('body')).toContainText(/Drupal|My Drupal Site/i);
+    await expect(page).toHaveTitle(/FreshRSS/i);
+    await expect(page.locator('#username')).toBeVisible();
+    await expect(page.locator('#passwordPlain')).toBeVisible();
   });
 
-  test('Drupal admin login page is available', async ({ page }) => {
-    await page.goto(`${drupalUrl}/user/login`, { waitUntil: 'domcontentloaded' });
+  test('Go Blog serves the homepage', async ({ page }) => {
+    const response = await page.goto(`${goBlogUrl}/`, { waitUntil: 'domcontentloaded' });
 
-    await expect(page.locator('#edit-name')).toBeVisible();
-    await expect(page.locator('#edit-pass')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Log in' })).toBeVisible();
+    expect(response?.ok()).toBeTruthy();
+    await expect(page).toHaveTitle(/Go Blog/i);
+    await expect(page.locator('body')).toContainText(/Go Blog/i);
   });
 
   test('static server hosts generated RSS feeds', async ({ request }) => {

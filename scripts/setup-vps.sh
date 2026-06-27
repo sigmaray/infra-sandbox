@@ -14,7 +14,7 @@ DEPLOY_ROOT="${DEPLOY_ROOT:-/opt/projects}"
 DOCKER_NETWORK="${DOCKER_NETWORK:-projects-net}"
 SWAP_SIZE_GB="${SWAP_SIZE_GB:-2}"
 
-PROJECTS=(postgresql drupal freshrss static-server go-blog reverse-proxy)
+PROJECTS=(postgresql freshrss static-server go-blog reverse-proxy)
 
 log() { printf '[setup-vps] %s\n' "$*"; }
 die() { log "ERROR: $*"; exit 1; }
@@ -166,19 +166,16 @@ Start services in order:
   1. PostgreSQL (shared database):
      cd ${DEPLOY_ROOT}/postgresql && docker compose up -d
 
-  2. Drupal:
-     cd ${DEPLOY_ROOT}/drupal && docker compose up -d
-
-  3. FreshRSS:
+  2. FreshRSS:
      cd ${DEPLOY_ROOT}/freshrss && docker compose up -d
 
-  4. Static RSS server (for tests):
+  3. Static RSS server (for tests):
      cd ${DEPLOY_ROOT}/static-server && docker compose up -d
 
-  5. Go Blog:
+  4. Go Blog:
      cd ${DEPLOY_ROOT}/go-blog && docker compose up -d
 
-  6. Reverse Proxy (Caddy):
+  5. Reverse Proxy (Caddy):
      cd ${DEPLOY_ROOT}/reverse-proxy && docker compose up -d
 
 Edit .env files in each directory and set strong passwords before production use.

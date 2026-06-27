@@ -1,8 +1,8 @@
 import { defineConfig } from '@playwright/test';
 
-const drupalPort = process.env.DRUPAL_HTTP_PORT ?? '8080';
 const freshrssPort = process.env.FRESHRSS_HTTP_PORT ?? '8081';
 const staticServerPort = process.env.STATIC_SERVER_HTTP_PORT ?? '8082';
+const goBlogPort = process.env.GO_BLOG_HTTP_PORT ?? '8083';
 
 export default defineConfig({
   testDir: './tests',
@@ -16,7 +16,7 @@ export default defineConfig({
     timeout: 30_000,
   },
   use: {
-    baseURL: `http://127.0.0.1:${drupalPort}`,
+    baseURL: `http://127.0.0.1:${goBlogPort}`,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
@@ -24,8 +24,8 @@ export default defineConfig({
   globalSetup: './tests/global-setup.ts',
   globalTeardown: './tests/global-teardown.ts',
   metadata: {
-    drupalPort,
     freshrssPort,
     staticServerPort,
+    goBlogPort,
   },
 });
