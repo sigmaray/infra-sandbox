@@ -30,6 +30,27 @@ async function createPost(
 }
 
 test.describe('go-blog', () => {
+  test('serves the homepage', async ({ page }) => {
+    const response = await page.goto(`${goBlogUrl}/`, { waitUntil: 'domcontentloaded' });
+
+    expect(response?.ok()).toBeTruthy();
+    await expect(page).toHaveTitle(/Go Blog/i);
+    await expect(page.locator('body')).toContainText(/Go Blog/i);
+  });
+
+  test('admin login page is available', async ({ page }) => {
+    await page.goto(`${goBlogUrl}/login`, { waitUntil: 'domcontentloaded' });
+
+    await expect(page.locator('#username')).toBeVisible();
+    await expect(page.locator('#password')).toBeVisible();
+    await expect(page.getByRole('button', { name: /login/i })).toBeVisible();
+  });
+
+  test('admin can log in', async ({ page }) => {
+    await loginToGoBlog(page);
+    await expect(page.locator('body')).toContainText(/Dashboard|Logout/i);
+  });
+
   test.describe.serial('posts', () => {
     test('paginates posts across pages', async ({ page }) => {
       await loginToGoBlog(page);
