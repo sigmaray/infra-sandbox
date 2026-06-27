@@ -10,12 +10,13 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    env:
-      DEPLOY_ROOT: ${{ runner.temp }}/infra-deploy
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Set deploy root
+        run: echo "DEPLOY_ROOT=${RUNNER_TEMP}/infra-deploy" >> "$GITHUB_ENV"
 
       - name: Install Node dependencies
         run: npm ci
@@ -32,8 +33,6 @@ jobs:
 
       - name: Start Docker stack
         run: bash scripts/stack-up.sh
-        env:
-          DEPLOY_ROOT: ${{ env.DEPLOY_ROOT }}
 
       - name: Run Playwright tests
         env:
@@ -53,5 +52,3 @@ jobs:
       - name: Stop Docker stack
         if: always()
         run: bash scripts/stack-down.sh
-        env:
-          DEPLOY_ROOT: ${{ env.DEPLOY_ROOT }}
