@@ -17,13 +17,21 @@ down_project() {
   fi
 }
 
+remove_legacy_container() {
+  local name="$1"
+  if docker container inspect "${name}" >/dev/null 2>&1; then
+    log "Removing legacy container ${name}"
+    docker rm -f "${name}" >/dev/null 2>&1 || true
+  fi
+}
+
 main() {
   down_project reverse-proxy
   down_project go-blog
   down_project freshrss
-  down_project drupal
   down_project static-server
   down_project postgresql
+  remove_legacy_container drupal
   log "Stack stopped"
 }
 

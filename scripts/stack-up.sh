@@ -7,7 +7,6 @@ set -euo pipefail
 REPO_DIR="${REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 STACK_ROOT="${DEPLOY_ROOT:-$REPO_DIR}"
 DOCKER_NETWORK="${DOCKER_NETWORK:-projects-net}"
-DRUPAL_PORT="${DRUPAL_HTTP_PORT:-8080}"
 FRESHRSS_PORT="${FRESHRSS_HTTP_PORT:-8081}"
 STATIC_SERVER_PORT="${STATIC_SERVER_HTTP_PORT:-8082}"
 GO_BLOG_PORT="${GO_BLOG_HTTP_PORT:-8083}"
@@ -30,27 +29,10 @@ POSTGRES_USER=postgres
 POSTGRES_PASSWORD=test-postgres-admin
 POSTGRES_DB=postgres
 
-DRUPAL_DB_USER=drupal
-DRUPAL_DB_PASSWORD=test-drupal-db
 FRESHRSS_DB_USER=freshrss
 FRESHRSS_DB_PASSWORD=test-freshrss-db
 GO_BLOG_DB_USER=goblog
 GO_BLOG_DB_PASSWORD=test-goblog-db
-EOF
-
-  cat > "${STACK_ROOT}/drupal/.env" <<EOF
-DRUPAL_SITE_NAME="My Drupal Site"
-DRUPAL_ADMIN_USER=admin
-DRUPAL_ADMIN_PASSWORD=test-admin
-DRUPAL_ADMIN_EMAIL=admin@example.com
-
-DRUPAL_DATABASE_HOST=shared-postgres
-DRUPAL_DATABASE_PORT=5432
-DRUPAL_DATABASE_NAME=drupal
-DRUPAL_DATABASE_USER=drupal
-DRUPAL_DATABASE_PASSWORD=test-drupal-db
-
-DRUPAL_HTTP_PORT=${DRUPAL_PORT}
 EOF
 
   cat > "${STACK_ROOT}/freshrss/.env" <<EOF
@@ -76,7 +58,6 @@ STATIC_SERVER_HTTP_PORT=${STATIC_SERVER_PORT}
 EOF
 
   cat > "${STACK_ROOT}/reverse-proxy/.env" <<EOF
-DRUPAL_HOST=drupal.localhost
 FRESHRSS_HOST=freshrss.localhost
 FEEDS_HOST=feeds.localhost
 BLOG_HOST=blog.localhost
@@ -106,7 +87,7 @@ ensure_network() {
 compose_up() {
   local project="$1"
   log "Starting ${project}"
-  if [[ "${project}" == "drupal" || "${project}" == "go-blog" ]]; then
+  if [[ "${project}" == "go-blog" ]]; then
     (cd "${STACK_ROOT}/${project}" && docker compose up -d --build)
   else
     (cd "${STACK_ROOT}/${project}" && docker compose up -d)
@@ -146,12 +127,9 @@ wait_for_container() {
 verify_postgres_databases() {
   log "Verifying PostgreSQL databases and users"
   docker exec shared-postgres psql -U postgres -d postgres -tAc \
-    "SELECT 1 FROM pg_database WHERE datname = 'drupal'" | grep -q 1
-  docker exec shared-postgres psql -U postgres -d postgres -tAc \
     "SELECT 1 FROM pg_database WHERE datname = 'freshrss'" | grep -q 1
   docker exec shared-postgres psql -U postgres -d postgres -tAc \
     "SELECT 1 FROM pg_database WHERE datname = 'goblog'" | grep -q 1
-  docker exec shared-postgres psql -U drupal -d drupal -c 'SELECT 1' >/dev/null
   docker exec shared-postgres psql -U freshrss -d freshrss -c 'SELECT 1' >/dev/null
   docker exec shared-postgres psql -U goblog -d goblog -c 'SELECT 1' >/dev/null
   log "PostgreSQL databases verified"
@@ -169,9 +147,6 @@ main() {
 
   compose_up static-server
   wait_for_container static-server
-
-  compose_up drupal
-  wait_for_container drupal
 
   compose_up freshrss
   wait_for_container freshrss

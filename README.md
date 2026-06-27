@@ -1,6 +1,6 @@
 # infra-sandbox
 
-A Docker-based infrastructure sandbox for running a small multi-service stack on a VPS or locally. The stack includes a shared PostgreSQL database, Drupal CMS, FreshRSS feed reader, a static RSS server for tests, and a Go blog application.
+A Docker-based infrastructure sandbox for running a small multi-service stack on a VPS or locally. The stack includes a shared PostgreSQL database, FreshRSS feed reader, a static RSS server for tests, a Go blog application, and a Caddy reverse proxy.
 
 **[Русская версия →](README.ru.md)**
 
@@ -19,20 +19,19 @@ All services share one PostgreSQL instance and communicate over a single Docker 
 ┌─────────────────────────────────────────────────────────────────┐
 │                     Docker network: projects-net                  │
 │                                                                   │
-│  ┌──────────────┐   ┌─────────┐   ┌──────────┐   ┌──────────┐ │
-│  │ shared-      │   │ Drupal  │   │ FreshRSS │   │ go-blog  │ │
-│  │ postgres     │◄──│ :8080   │   │ :8081    │   │ :8083    │ │
-│  │              │◄──┤         │   │          │   │          │ │
-│  │ drupal DB    │◄──┤         │   │          │   │          │ │
-│  │ freshrss DB  │   └─────────┘   └────┬─────┘   └──────────┘ │
-│  │ goblog DB    │                      │                         │
-│  └──────────────┘                      │ subscribes to          │
-│         ▲                              ▼                         │
-│         │                      ┌──────────────┐                   │
-│         │                      │ static-server│                   │
-│         │                      │ (nginx)      │                   │
-│         │                      │ :8082        │                   │
-│         └──────────────────────┴──────────────┘                   │
+│  ┌──────────────┐   ┌──────────┐   ┌──────────┐                  │
+│  │ shared-      │   │ FreshRSS │   │ go-blog  │                  │
+│  │ postgres     │◄──│ :8081    │   │ :8083    │                  │
+│  │              │   │          │   │          │                  │
+│  │ freshrss DB  │   └────┬─────┘   └────┬─────┘                  │
+│  │ goblog DB    │        │              │                        │
+│  └──────────────┘        │ subscribes   │                        │
+│                          ▼              ▼                        │
+│                    ┌──────────────┐  ┌──────────────┐            │
+│                    │ static-server│  │ Caddy        │            │
+│                    │ (nginx)      │  │ :80          │            │
+│                    │ :8082        │  └──────────────┘            │
+│                    └──────────────┘                               │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -40,13 +39,13 @@ All services share one PostgreSQL instance and communicate over a single Docker 
 
 ## Services and default ports
 
-| Service        | Container name   | Port | Description                                      |
-|----------------|------------------|------|--------------------------------------------------|
-| PostgreSQL     | `shared-postgres`| —    | Shared database for Drupal, FreshRSS, and go-blog |
-| Drupal         | `drupal`         | 8080 | Drupal 10 CMS with automatic install             |
-| FreshRSS       | `freshrss`       | 8081 | Self-hosted RSS reader                           |
-| Static server  | `static-server`  | 8082 | Nginx serving test RSS feeds                     |
-| Go Blog        | `go-blog`        | 8083 | Simple blog app written in Go (Gin + GORM)       |
+| Service        | Container name   | Port | Description                               |
+|----------------|------------------|------|-------------------------------------------|
+| PostgreSQL     | `shared-postgres`| —    | Shared database for FreshRSS and go-blog  |
+| FreshRSS       | `freshrss`       | 8081 | Self-hosted RSS reader                    |
+| Static server  | `static-server`  | 8082 | Nginx serving test RSS feeds              |
+| Go Blog        | `go-blog`        | 8083 | Simple blog app written in Go (Gin + GORM) |
+| Reverse Proxy  | `reverse-proxy`  | 80   | Caddy routing `*.localhost` subdomains    |
 
 Ports can be changed via environment variables (see [Configuration](#configuration)).
 
@@ -91,12 +90,13 @@ This script:
 
 ### 4. Open the services
 
-| Service   | URL                        | Default credentials      |
-|-----------|----------------------------|--------------------------|
-| Drupal    | http://127.0.0.1:8080      | `admin` / `test-admin`   |
-| FreshRSS  | http://127.0.0.1:8081      | `admin` / `test-admin`   |
-| Go Blog   | http://127.0.0.1:8083      | `admin` / `admin`        |
+| Service   | URL                          | Default credentials    |
+|-----------|------------------------------|------------------------|
+| FreshRSS  | http://127.0.0.1:8081        | `admin` / `test-admin` |
+| Go Blog   | http://127.0.0.1:8083        | `admin` / `admin`      |
 | RSS feeds | http://127.0.0.1:8082/feeds/ | — (no auth)            |
+
+The same services are also available through Caddy on port 80 via `freshrss.localhost`, `feeds.localhost`, and `blog.localhost`.
 
 ### 5. Run tests
 
@@ -152,10 +152,10 @@ The script will:
 
 ```bash
 cd /opt/projects/postgresql && docker compose up -d
-cd /opt/projects/drupal     && docker compose up -d
 cd /opt/projects/freshrss   && docker compose up -d
 cd /opt/projects/static-server && docker compose up -d
 cd /opt/projects/go-blog    && docker compose up -d
+cd /opt/projects/reverse-proxy && docker compose up -d
 ```
 
 ### 4. Update after code changes
@@ -175,7 +175,7 @@ Useful flags:
 | `SKIP_GIT_PULL=1` | Sync and restart without `git pull`         |
 | `SKIP_RESTART=1`  | Sync files only, do not restart containers  |
 | `DRY_RUN=1`       | Show what would happen without doing it     |
-| `PROJECTS="drupal go-blog"` | Update only selected projects   |
+| `PROJECTS="freshrss go-blog"` | Update only selected projects |
 
 ---
 
@@ -185,13 +185,7 @@ Each service has its own directory with `docker-compose.yml` and `.env.example`.
 
 ### PostgreSQL (`postgresql/.env`)
 
-Creates three databases on first start: `drupal`, `freshrss`, `goblog`. Each has a dedicated user.
-
-### Drupal (`drupal/.env`)
-
-- Site name, admin credentials, database connection
-- `DRUPAL_HTTP_PORT` — host port (default `8080`)
-- Drupal installs automatically on first container start via Drush
+Creates two databases on first start: `freshrss` and `goblog`. Each has a dedicated user.
 
 ### FreshRSS (`freshrss/.env`)
 
@@ -209,6 +203,11 @@ Creates three databases on first start: `drupal`, `freshrss`, `goblog`. Each has
 - `STATIC_SERVER_HTTP_PORT` — host port (default `8082`)
 - RSS feed files live in `static-server/content/feeds/`
 - `content/manifest.json` describes feeds for automated tests
+
+### Reverse proxy (`reverse-proxy/.env`)
+
+- `FRESHRSS_HOST`, `FEEDS_HOST`, `BLOG_HOST` — hostnames served by Caddy
+- `CADDY_HTTP_PORT` — host port for the proxy (default `80`)
 
 ### Setup script variables
 
@@ -232,10 +231,10 @@ infra-sandbox/
 │   ├── stack-down.sh       # Stop stack and remove volumes
 │   └── update-projects.sh  # Git pull + sync + restart changed services
 ├── postgresql/             # Shared PostgreSQL 16
-├── drupal/                 # Drupal 10 + Apache, auto-install
 ├── freshrss/               # FreshRSS feed reader
 ├── static-server/          # Nginx with test RSS feeds
 ├── go-blog/                # Go blog (Gin, GORM, Goose migrations)
+├── reverse-proxy/          # Caddy reverse proxy for localhost subdomains
 ├── tests/                  # Playwright end-to-end tests
 ├── .github/workflows/ci.yml
 ├── package.json
@@ -250,10 +249,10 @@ Tests use [Playwright](https://playwright.dev/) and run against the live Docker 
 
 | Test file            | What it checks                                           |
 |----------------------|----------------------------------------------------------|
-| `infra.spec.ts`      | PostgreSQL health, Drupal homepage, static RSS feeds     |
+| `infra.spec.ts`      | PostgreSQL health, direct service smoke checks, RSS feeds |
 | `freshrss.spec.ts`   | FreshRSS login, RSS feed import from static server       |
-| `drupal-blog.spec.ts`| Drupal blog setup, posts, pagination, tag filtering      |
-| `go-blog.spec.ts`    | Go blog login, posts, pagination, tag filtering        |
+| `go-blog.spec.ts`    | Go blog login, posts, pagination, tag filtering         |
+| `caddy.spec.ts`      | Reverse proxy routes for FreshRSS, feeds, and go-blog   |
 
 In CI, the stack is started before tests (`SKIP_STACK_SETUP=1` tells Playwright not to start it again). Locally, `global-setup.ts` runs `stack-up.sh` automatically unless you set `SKIP_STACK_SETUP=1`.
 
@@ -295,10 +294,6 @@ docker network create projects-net
 
 Check logs: `docker logs shared-postgres`. On first start, init scripts create databases — wait up to 2 minutes.
 
-**Drupal still installing**
-
-First start runs `drush site:install`. Check progress: `docker logs -f drupal`.
-
 **Permission denied on Docker (VPS)**
 
 Re-login after `setup-vps.sh` adds you to the `docker` group, or run `newgrp docker`.
@@ -308,11 +303,11 @@ Re-login after `setup-vps.sh` adds you to the `docker` group, or run `newgrp doc
 Override ports when starting:
 
 ```bash
-DRUPAL_HTTP_PORT=9080 FRESHRSS_HTTP_PORT=9081 npm run stack:up
+FRESHRSS_HTTP_PORT=9081 STATIC_SERVER_HTTP_PORT=9082 GO_BLOG_HTTP_PORT=9083 npm run stack:up
 ```
 
 ---
 
 ## License
 
-This is a sandbox / learning project. Check individual service licenses (Drupal, FreshRSS, etc.) for production use.
+This is a sandbox / learning project. Check individual service licenses (FreshRSS, Caddy, PostgreSQL, etc.) for production use.

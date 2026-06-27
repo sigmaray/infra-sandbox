@@ -1,6 +1,6 @@
 # infra-sandbox
 
-Песочница инфраструктуры на Docker: небольшой набор сервисов для VPS или локальной разработки. В стек входят общая база PostgreSQL, CMS Drupal, RSS-читалка FreshRSS, статический сервер с тестовыми лентами и блог на Go.
+Песочница инфраструктуры на Docker: небольшой набор сервисов для VPS или локальной разработки. В стек входят общая база PostgreSQL, RSS-читалка FreshRSS, статический сервер с тестовыми лентами, блог на Go и reverse proxy на Caddy.
 
 **[English version →](README.md)**
 
@@ -19,20 +19,19 @@
 ┌─────────────────────────────────────────────────────────────────┐
 │                     Docker-сеть: projects-net                     │
 │                                                                   │
-│  ┌──────────────┐   ┌─────────┐   ┌──────────┐   ┌──────────┐ │
-│  │ shared-      │   │ Drupal  │   │ FreshRSS │   │ go-blog  │ │
-│  │ postgres     │◄──│ :8080   │   │ :8081    │   │ :8083    │ │
-│  │              │◄──┤         │   │          │   │          │ │
-│  │ БД drupal    │◄──┤         │   │          │   │          │ │
-│  │ БД freshrss  │   └─────────┘   └────┬─────┘   └──────────┘ │
-│  │ БД goblog    │                      │                         │
-│  └──────────────┘                      │ подписка на             │
-│         ▲                              ▼                         │
-│         │                      ┌──────────────┐                   │
-│         │                      │ static-server│                   │
-│         │                      │ (nginx)      │                   │
-│         │                      │ :8082        │                   │
-│         └──────────────────────┴──────────────┘                   │
+│  ┌──────────────┐   ┌──────────┐   ┌──────────┐                  │
+│  │ shared-      │   │ FreshRSS │   │ go-blog  │                  │
+│  │ postgres     │◄──│ :8081    │   │ :8083    │                  │
+│  │              │   │          │   │          │                  │
+│  │ БД freshrss  │   └────┬─────┘   └────┬─────┘                  │
+│  │ БД goblog    │        │              │                        │
+│  └──────────────┘        │ подписка на  │                        │
+│                          ▼              ▼                        │
+│                    ┌──────────────┐  ┌──────────────┐            │
+│                    │ static-server│  │ Caddy        │            │
+│                    │ (nginx)      │  │ :80          │            │
+│                    │ :8082        │  └──────────────┘            │
+│                    └──────────────┘                               │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -40,13 +39,13 @@
 
 ## Сервисы и порты по умолчанию
 
-| Сервис         | Имя контейнера   | Порт | Описание                                         |
-|----------------|------------------|------|--------------------------------------------------|
-| PostgreSQL     | `shared-postgres`| —    | Общая БД для Drupal, FreshRSS и go-blog          |
-| Drupal         | `drupal`         | 8080 | Drupal 10 с автоматической установкой            |
-| FreshRSS       | `freshrss`       | 8081 | Самостоятельно размещаемая RSS-читалка           |
-| Статический сервер | `static-server` | 8082 | Nginx с тестовыми RSS-лентами                |
-| Go Blog        | `go-blog`        | 8083 | Простой блог на Go (Gin + GORM)                  |
+| Сервис             | Имя контейнера   | Порт | Описание                                 |
+|--------------------|------------------|------|------------------------------------------|
+| PostgreSQL         | `shared-postgres`| —    | Общая БД для FreshRSS и go-blog          |
+| FreshRSS           | `freshrss`       | 8081 | Самостоятельно размещаемая RSS-читалка   |
+| Статический сервер | `static-server`  | 8082 | Nginx с тестовыми RSS-лентами            |
+| Go Blog            | `go-blog`        | 8083 | Простой блог на Go (Gin + GORM)          |
+| Reverse Proxy      | `reverse-proxy`  | 80   | Caddy для маршрутизации `*.localhost`    |
 
 Порты можно изменить через переменные окружения (см. [Конфигурация](#конфигурация)).
 
@@ -91,12 +90,13 @@ npm run stack:up
 
 ### 4. Открыть сервисы в браузере
 
-| Сервис    | URL                          | Логин по умолчанию       |
-|-----------|------------------------------|--------------------------|
-| Drupal    | http://127.0.0.1:8080        | `admin` / `test-admin`   |
-| FreshRSS  | http://127.0.0.1:8081        | `admin` / `test-admin`   |
-| Go Blog   | http://127.0.0.1:8083        | `admin` / `admin`        |
+| Сервис    | URL                          | Логин по умолчанию     |
+|-----------|------------------------------|------------------------|
+| FreshRSS  | http://127.0.0.1:8081        | `admin` / `test-admin` |
+| Go Blog   | http://127.0.0.1:8083        | `admin` / `admin`      |
 | RSS-ленты | http://127.0.0.1:8082/feeds/ | — (без авторизации)    |
+
+Те же сервисы доступны через Caddy на 80 порту: `freshrss.localhost`, `feeds.localhost` и `blog.localhost`.
 
 ### 5. Запустить тесты
 
@@ -152,10 +152,10 @@ sudo REPO_DIR=~/infra-sandbox ./scripts/setup-vps.sh
 
 ```bash
 cd /opt/projects/postgresql && docker compose up -d
-cd /opt/projects/drupal     && docker compose up -d
 cd /opt/projects/freshrss   && docker compose up -d
 cd /opt/projects/static-server && docker compose up -d
 cd /opt/projects/go-blog    && docker compose up -d
+cd /opt/projects/reverse-proxy && docker compose up -d
 ```
 
 ### 4. Обновление после изменений в коде
@@ -175,7 +175,7 @@ REPO_DIR=~/infra-sandbox ./scripts/update-projects.sh
 | `SKIP_GIT_PULL=1` | Синхронизировать и перезапустить без `git pull`  |
 | `SKIP_RESTART=1`  | Только синхронизация файлов, без перезапуска     |
 | `DRY_RUN=1`       | Показать план действий без выполнения            |
-| `PROJECTS="drupal go-blog"` | Обновить только выбранные проекты     |
+| `PROJECTS="freshrss go-blog"` | Обновить только выбранные проекты   |
 
 ---
 
@@ -185,13 +185,7 @@ REPO_DIR=~/infra-sandbox ./scripts/update-projects.sh
 
 ### PostgreSQL (`postgresql/.env`)
 
-При первом запуске создаёт три базы: `drupal`, `freshrss`, `goblog`. У каждой — отдельный пользователь.
-
-### Drupal (`drupal/.env`)
-
-- Название сайта, учётные данные администратора, подключение к БД
-- `DRUPAL_HTTP_PORT` — порт на хосте (по умолчанию `8080`)
-- Drupal устанавливается автоматически при первом запуске контейнера через Drush
+При первом запуске создаёт две базы: `freshrss` и `goblog`. У каждой — отдельный пользователь.
 
 ### FreshRSS (`freshrss/.env`)
 
@@ -209,6 +203,11 @@ REPO_DIR=~/infra-sandbox ./scripts/update-projects.sh
 - `STATIC_SERVER_HTTP_PORT` — порт на хосте (по умолчанию `8082`)
 - RSS-файлы лежат в `static-server/content/feeds/`
 - `content/manifest.json` описывает ленты для автоматических тестов
+
+### Reverse Proxy (`reverse-proxy/.env`)
+
+- `FRESHRSS_HOST`, `FEEDS_HOST`, `BLOG_HOST` — хосты, которые обслуживает Caddy
+- `CADDY_HTTP_PORT` — порт reverse proxy на хосте (по умолчанию `80`)
 
 ### Переменные скрипта установки
 
@@ -232,10 +231,10 @@ infra-sandbox/
 │   ├── stack-down.sh       # Остановка стека и удаление томов
 │   └── update-projects.sh  # git pull + синхронизация + перезапуск
 ├── postgresql/             # Общий PostgreSQL 16
-├── drupal/                 # Drupal 10 + Apache, автоустановка
 ├── freshrss/               # FreshRSS
 ├── static-server/          # Nginx с тестовыми RSS-лентами
 ├── go-blog/                # Блог на Go (Gin, GORM, миграции Goose)
+├── reverse-proxy/          # Caddy для localhost-поддоменов
 ├── tests/                  # End-to-end тесты Playwright
 ├── .github/workflows/ci.yml
 ├── package.json
@@ -250,10 +249,10 @@ infra-sandbox/
 
 | Файл тестов          | Что проверяется                                          |
 |----------------------|----------------------------------------------------------|
-| `infra.spec.ts`      | Здоровье PostgreSQL, главная Drupal, RSS на static-server |
+| `infra.spec.ts`      | Здоровье PostgreSQL, смоук-проверки сервисов, RSS        |
 | `freshrss.spec.ts`   | Вход в FreshRSS, импорт ленты со static-server           |
-| `drupal-blog.spec.ts`| Настройка блога Drupal, посты, пагинация, теги           |
 | `go-blog.spec.ts`    | Вход в go-blog, посты, пагинация, фильтр по тегам        |
+| `caddy.spec.ts`      | Маршруты reverse proxy для FreshRSS, лент и go-blog      |
 
 В CI стек поднимается до тестов (`SKIP_STACK_SETUP=1` говорит Playwright не запускать его повторно). Локально `global-setup.ts` автоматически вызывает `stack-up.sh`, если не задан `SKIP_STACK_SETUP=1`.
 
@@ -295,10 +294,6 @@ docker network create projects-net
 
 Смотрите логи: `docker logs shared-postgres`. При первом запуске init-скрипты создают базы — подождите до 2 минут.
 
-**Drupal ещё устанавливается**
-
-Первый запуск выполняет `drush site:install`. Прогресс: `docker logs -f drupal`.
-
 **Permission denied при работе с Docker (VPS)**
 
 Перелогиньтесь после `setup-vps.sh` (добавление в группу `docker`) или выполните `newgrp docker`.
@@ -308,11 +303,11 @@ docker network create projects-net
 Переопределите порты при запуске:
 
 ```bash
-DRUPAL_HTTP_PORT=9080 FRESHRSS_HTTP_PORT=9081 npm run stack:up
+FRESHRSS_HTTP_PORT=9081 STATIC_SERVER_HTTP_PORT=9082 GO_BLOG_HTTP_PORT=9083 npm run stack:up
 ```
 
 ---
 
 ## Лицензия
 
-Это учебный / экспериментальный проект. Для продакшена проверьте лицензии отдельных сервисов (Drupal, FreshRSS и др.).
+Это учебный / экспериментальный проект. Для продакшена проверьте лицензии отдельных сервисов (FreshRSS, Caddy, PostgreSQL и др.).
