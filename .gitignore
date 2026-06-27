@@ -1,5 +1,3 @@
-static-server/content/feeds/
-static-server/content/manifest.json
 node_modules/
 test-results/
 playwright-report/
