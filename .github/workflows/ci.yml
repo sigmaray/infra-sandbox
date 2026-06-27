@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+env:
+  DEPLOY_ROOT: ${{ runner.temp }}/infra-deploy
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run VPS setup script
+        run: |
+          sudo SKIP_SWAP=1 \
+            DEPLOY_ROOT="${DEPLOY_ROOT}" \
+            REPO_DIR="${GITHUB_WORKSPACE}" \
+            bash scripts/setup-vps.sh
+
+      - name: Start Docker stack
+        run: bash scripts/stack-up.sh
+        env:
+          DEPLOY_ROOT: ${{ env.DEPLOY_ROOT }}
+
+      - name: Run Playwright tests
+        env:
+          CI: true
+          SKIP_STACK_SETUP: '1'
+          STATIC_SERVER_CONTENT_DIR: ${{ env.DEPLOY_ROOT }}/static-server/content
+        run: npx playwright test
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Stop Docker stack
+        if: always()
+        run: bash scripts/stack-down.sh
+        env:
+          DEPLOY_ROOT: ${{ env.DEPLOY_ROOT }}

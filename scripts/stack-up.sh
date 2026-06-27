@@ -5,6 +5,7 @@
 set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+STACK_ROOT="${DEPLOY_ROOT:-$REPO_DIR}"
 DOCKER_NETWORK="${DOCKER_NETWORK:-projects-net}"
 DRUPAL_PORT="${DRUPAL_HTTP_PORT:-8080}"
 FRESHRSS_PORT="${FRESHRSS_HTTP_PORT:-8081}"
@@ -23,7 +24,7 @@ require_docker() {
 write_test_env_files() {
   log "Writing test .env files"
 
-  cat > "${REPO_DIR}/postgresql/.env" <<'EOF'
+  cat > "${STACK_ROOT}/postgresql/.env" <<'EOF'
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=test-postgres-admin
 POSTGRES_DB=postgres
@@ -34,7 +35,7 @@ FRESHRSS_DB_USER=freshrss
 FRESHRSS_DB_PASSWORD=test-freshrss-db
 EOF
 
-  cat > "${REPO_DIR}/drupal/.env" <<EOF
+  cat > "${STACK_ROOT}/drupal/.env" <<EOF
 DRUPAL_SITE_NAME=My Drupal Site
 DRUPAL_ADMIN_USER=admin
 DRUPAL_ADMIN_PASSWORD=test-admin
@@ -49,7 +50,7 @@ DRUPAL_DATABASE_PASSWORD=test-drupal-db
 DRUPAL_HTTP_PORT=${DRUPAL_PORT}
 EOF
 
-  cat > "${REPO_DIR}/freshrss/.env" <<EOF
+  cat > "${STACK_ROOT}/freshrss/.env" <<EOF
 TZ=UTC
 CRON_MIN=*/15
 
@@ -67,14 +68,14 @@ FRESHRSS_LANGUAGE=en
 FRESHRSS_HTTP_PORT=${FRESHRSS_PORT}
 EOF
 
-  cat > "${REPO_DIR}/static-server/.env" <<EOF
+  cat > "${STACK_ROOT}/static-server/.env" <<EOF
 STATIC_SERVER_HTTP_PORT=${STATIC_SERVER_PORT}
 EOF
 }
 
 generate_test_feeds() {
   log "Generating test RSS feeds"
-  STATIC_SERVER_HTTP_PORT="${STATIC_SERVER_PORT}" \
+  STACK_ROOT="${STACK_ROOT}" STATIC_SERVER_HTTP_PORT="${STATIC_SERVER_PORT}" \
     npx --yes tsx "${REPO_DIR}/scripts/generate-test-feeds.mts"
 }
 
@@ -90,7 +91,7 @@ ensure_network() {
 compose_up() {
   local project="$1"
   log "Starting ${project}"
-  (cd "${REPO_DIR}/${project}" && docker compose up -d)
+  (cd "${STACK_ROOT}/${project}" && docker compose up -d)
 }
 
 wait_for_postgres() {
@@ -136,6 +137,7 @@ verify_postgres_databases() {
 
 main() {
   require_docker
+  log "Stack root: ${STACK_ROOT}"
   write_test_env_files
   ensure_network
 
@@ -155,7 +157,7 @@ main() {
   wait_for_container freshrss
 
   log "Installing Drupal via web installer"
-  (cd "${REPO_DIR}" && npx --yes tsx scripts/install-drupal.mts)
+  DEPLOY_ROOT="${STACK_ROOT}" npx --yes tsx "${REPO_DIR}/scripts/install-drupal.mts"
 
   log "Stack is ready"
 }

@@ -37,8 +37,9 @@ async function isDrupalInstalled(baseUrl: string): Promise<boolean> {
 
 async function installDrupal() {
   const repoRoot = path.resolve(scriptDir, '..');
+  const deployRoot = process.env.DEPLOY_ROOT ?? repoRoot;
   const env = {
-    ...loadEnv(path.join(repoRoot, 'drupal', '.env')),
+    ...loadEnv(path.join(deployRoot, 'drupal', '.env')),
     ...process.env,
   };
 

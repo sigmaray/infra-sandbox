@@ -14,7 +14,7 @@ DEPLOY_ROOT="${DEPLOY_ROOT:-/opt/projects}"
 DOCKER_NETWORK="${DOCKER_NETWORK:-projects-net}"
 SWAP_SIZE_GB="${SWAP_SIZE_GB:-2}"
 
-PROJECTS=(postgresql drupal freshrss)
+PROJECTS=(postgresql drupal freshrss static-server)
 
 log() { printf '[setup-vps] %s\n' "$*"; }
 die() { log "ERROR: $*"; exit 1; }
@@ -36,6 +36,11 @@ detect_os() {
 }
 
 setup_swap() {
+  if [[ "${SKIP_SWAP:-}" == "1" ]]; then
+    log "SKIP_SWAP=1, skipping swap setup"
+    return
+  fi
+
   if swapon --show | grep -q '/swapfile'; then
     log "Swap already configured, skipping"
     return
@@ -156,6 +161,9 @@ Start services in order:
 
   3. FreshRSS:
      cd ${DEPLOY_ROOT}/freshrss && docker compose up -d
+
+  4. Static RSS server (for tests):
+     cd ${DEPLOY_ROOT}/static-server && docker compose up -d
 
 Edit .env files in each directory and set strong passwords before production use.
 Re-login (or run 'newgrp docker') if you were added to the docker group.

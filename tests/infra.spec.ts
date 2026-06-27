@@ -9,7 +9,9 @@ const freshrssPort = process.env.FRESHRSS_HTTP_PORT ?? '8081';
 const drupalUrl = `http://127.0.0.1:${drupalPort}`;
 const freshrssUrl = `http://127.0.0.1:${freshrssPort}`;
 
-const manifestPath = path.resolve(__dirname, '../static-server/content/manifest.json');
+const manifestPath = process.env.STATIC_SERVER_CONTENT_DIR
+  ? path.join(process.env.STATIC_SERVER_CONTENT_DIR, 'manifest.json')
+  : path.resolve(__dirname, '../static-server/content/manifest.json');
 
 type FeedManifest = {
   feeds: Array<{

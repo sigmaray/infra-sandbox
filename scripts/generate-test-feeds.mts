@@ -2,8 +2,8 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const repoRoot = path.resolve(import.meta.dirname, '..');
-const contentDir = path.join(repoRoot, 'static-server', 'content');
+const stackRoot = process.env.STACK_ROOT ?? process.env.DEPLOY_ROOT ?? path.resolve(import.meta.dirname, '..');
+const contentDir = path.join(stackRoot, 'static-server', 'content');
 const feedsDir = path.join(contentDir, 'feeds');
 const manifestPath = path.join(contentDir, 'manifest.json');
 
