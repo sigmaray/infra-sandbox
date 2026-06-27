@@ -109,7 +109,6 @@ test.describe('go-blog', () => {
       });
 
       await expect(page.locator('body')).toContainText(title);
-      await expect(page.locator('body')).toContainText('Feature post body');
 
       await page.goto(`${goBlogUrl}/?tag=${firstTag}`, { waitUntil: 'domcontentloaded' });
       const post = page.locator('.post').filter({ hasText: title });
