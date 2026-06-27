@@ -65,7 +65,7 @@ test.describe('Infrastructure stack', () => {
         '-d',
         'postgres',
         '-tAc',
-        "SELECT datname FROM pg_database WHERE datname IN ('drupal', 'freshrss') ORDER BY datname",
+        "SELECT datname FROM pg_database WHERE datname IN ('drupal', 'freshrss', 'goblog') ORDER BY datname",
       ],
       { encoding: 'utf8' },
     )
@@ -73,7 +73,7 @@ test.describe('Infrastructure stack', () => {
       .split('\n')
       .filter(Boolean);
 
-    expect(databases).toEqual(['drupal', 'freshrss']);
+    expect(databases).toEqual(['drupal', 'freshrss', 'goblog']);
 
     execFileSync(
       'docker',
@@ -83,6 +83,11 @@ test.describe('Infrastructure stack', () => {
     execFileSync(
       'docker',
       ['exec', 'shared-postgres', 'psql', '-U', 'freshrss', '-d', 'freshrss', '-c', 'SELECT 1'],
+      { stdio: 'pipe' },
+    );
+    execFileSync(
+      'docker',
+      ['exec', 'shared-postgres', 'psql', '-U', 'goblog', '-d', 'goblog', '-c', 'SELECT 1'],
       { stdio: 'pipe' },
     );
   });

@@ -1,10 +1,10 @@
 -- +goose Up
 -- +goose StatementBegin
 CREATE TABLE posts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    created_at DATETIME,
-    updated_at DATETIME,
-    deleted_at DATETIME,
+    id SERIAL PRIMARY KEY,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP,
+    deleted_at TIMESTAMP,
     title TEXT,
     content TEXT NOT NULL
 );
@@ -12,10 +12,10 @@ CREATE TABLE posts (
 CREATE INDEX idx_posts_deleted_at ON posts(deleted_at);
 
 CREATE TABLE tags (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    created_at DATETIME,
-    updated_at DATETIME,
-    deleted_at DATETIME,
+    id SERIAL PRIMARY KEY,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP,
+    deleted_at TIMESTAMP,
     name TEXT NOT NULL
 );
 

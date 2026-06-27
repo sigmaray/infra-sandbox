@@ -34,6 +34,8 @@ DRUPAL_DB_USER=drupal
 DRUPAL_DB_PASSWORD=test-drupal-db
 FRESHRSS_DB_USER=freshrss
 FRESHRSS_DB_PASSWORD=test-freshrss-db
+GO_BLOG_DB_USER=goblog
+GO_BLOG_DB_PASSWORD=test-goblog-db
 EOF
 
   cat > "${STACK_ROOT}/drupal/.env" <<EOF
@@ -75,6 +77,12 @@ EOF
 
   cat > "${STACK_ROOT}/go-blog/.env" <<EOF
 GO_BLOG_HTTP_PORT=${GO_BLOG_PORT}
+
+GO_BLOG_DATABASE_HOST=shared-postgres
+GO_BLOG_DATABASE_PORT=5432
+GO_BLOG_DATABASE_NAME=goblog
+GO_BLOG_DATABASE_USER=goblog
+GO_BLOG_DATABASE_PASSWORD=test-goblog-db
 EOF
 }
 
@@ -96,7 +104,7 @@ ensure_network() {
 compose_up() {
   local project="$1"
   log "Starting ${project}"
-  if [[ "${project}" == "drupal" ]]; then
+  if [[ "${project}" == "drupal" || "${project}" == "go-blog" ]]; then
     (cd "${STACK_ROOT}/${project}" && docker compose up -d --build)
   else
     (cd "${STACK_ROOT}/${project}" && docker compose up -d)
@@ -139,8 +147,11 @@ verify_postgres_databases() {
     "SELECT 1 FROM pg_database WHERE datname = 'drupal'" | grep -q 1
   docker exec shared-postgres psql -U postgres -d postgres -tAc \
     "SELECT 1 FROM pg_database WHERE datname = 'freshrss'" | grep -q 1
+  docker exec shared-postgres psql -U postgres -d postgres -tAc \
+    "SELECT 1 FROM pg_database WHERE datname = 'goblog'" | grep -q 1
   docker exec shared-postgres psql -U drupal -d drupal -c 'SELECT 1' >/dev/null
   docker exec shared-postgres psql -U freshrss -d freshrss -c 'SELECT 1' >/dev/null
+  docker exec shared-postgres psql -U goblog -d goblog -c 'SELECT 1' >/dev/null
   log "PostgreSQL databases verified"
 }
 
