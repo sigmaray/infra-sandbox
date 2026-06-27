@@ -14,7 +14,7 @@ DEPLOY_ROOT="${DEPLOY_ROOT:-/opt/projects}"
 DOCKER_NETWORK="${DOCKER_NETWORK:-projects-net}"
 SWAP_SIZE_GB="${SWAP_SIZE_GB:-2}"
 
-PROJECTS=(postgresql drupal freshrss static-server go-blog)
+PROJECTS=(postgresql drupal freshrss static-server go-blog reverse-proxy)
 
 log() { printf '[setup-vps] %s\n' "$*"; }
 die() { log "ERROR: $*"; exit 1; }
@@ -177,6 +177,9 @@ Start services in order:
 
   5. Go Blog:
      cd ${DEPLOY_ROOT}/go-blog && docker compose up -d
+
+  6. Reverse Proxy (Caddy):
+     cd ${DEPLOY_ROOT}/reverse-proxy && docker compose up -d
 
 Edit .env files in each directory and set strong passwords before production use.
 Re-login (or run 'newgrp docker') if you were added to the docker group.
