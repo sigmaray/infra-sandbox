@@ -7,11 +7,13 @@
 # server before starting the application stack.
 #
 #  Usage (as root or with sudo):
-#   curl -fsSL ... | bash
-#   ./scripts/setup-vps.sh
+#   curl -sSL https://raw.githubusercontent.com/sigmaray/infra-sandbox/main/scripts/setup-vps.sh | sudo bash
+#   sudo ./scripts/setup-vps.sh
 #
 # Environment:
-#   REPO_DIR         Path to this git checkout (default: parent of scripts/)
+#   REPO_DIR         Path to this git checkout (default: parent of scripts/ or ~/infra-sandbox when piped)
+#   GIT_REPO_URL     Remote URL used when cloning (default: https://github.com/sigmaray/infra-sandbox.git)
+#   GIT_BRANCH       Branch to clone (default: main)
 #   DEPLOY_ROOT      Where projects are deployed (default: /opt/projects)
 #   DOCKER_NETWORK   Shared Docker network name (default: projects-net)
 #   SWAP_SIZE_GB     Swap file size in GB (default: 2)
@@ -20,7 +22,9 @@
 #
 set -euo pipefail
 
-REPO_DIR="${REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+REPO_DIR="${REPO_DIR:-}"
+GIT_REPO_URL="${GIT_REPO_URL:-https://github.com/sigmaray/infra-sandbox.git}"
+GIT_BRANCH="${GIT_BRANCH:-main}"
 DEPLOY_ROOT="${DEPLOY_ROOT:-/opt/projects}"
 DOCKER_NETWORK="${DOCKER_NETWORK:-projects-net}"
 SWAP_SIZE_GB="${SWAP_SIZE_GB:-2}"
@@ -47,6 +51,71 @@ detect_os() {
   else
     echo "unknown"
   fi
+}
+
+# When run via "curl ... | bash", BASH_SOURCE is not a file on disk — use a stable checkout path.
+resolve_repo_dir() {
+  if [[ -n "$REPO_DIR" ]]; then
+    return
+  fi
+
+  local script="${BASH_SOURCE[0]}"
+  if [[ -f "$script" && "$script" != /dev/fd/* && "$script" != /proc/self/fd/* ]]; then
+    REPO_DIR="$(cd "$(dirname "$script")/.." && pwd)"
+    return
+  fi
+
+  local owner="${SUDO_USER:-${DEPLOY_USER:-${USER:-root}}}"
+  local owner_home
+  owner_home="$(getent passwd "$owner" 2>/dev/null | cut -d: -f6 || true)"
+  REPO_DIR="${owner_home:-${HOME}}/infra-sandbox"
+}
+
+# Install git when missing (Ubuntu/Debian). Idempotent: skips if already present.
+install_git() {
+  if command -v git >/dev/null 2>&1; then
+    log "Git already installed: $(git --version)"
+    return
+  fi
+
+  local os
+  os="$(detect_os)"
+  [[ "$os" == "ubuntu" || "$os" == "debian" ]] || die "Unsupported OS: $os (expected Ubuntu/Debian)"
+
+  log "Installing git..."
+  apt-get update -qq
+  apt-get install -y -qq git
+  log "Git installed: $(git --version)"
+}
+
+# Clone the repository on first run. Idempotent: existing checkout is left untouched.
+ensure_repo() {
+  if [[ -d "${REPO_DIR}/.git" ]]; then
+    log "Repository ready: ${REPO_DIR}"
+    return
+  fi
+
+  if [[ -e "${REPO_DIR}" ]]; then
+    die "Path exists but is not a git repository: ${REPO_DIR}"
+  fi
+
+  log "Cloning ${GIT_REPO_URL} (branch: ${GIT_BRANCH}) into ${REPO_DIR}"
+  mkdir -p "$(dirname "${REPO_DIR}")"
+  git clone --branch "${GIT_BRANCH}" -- "${GIT_REPO_URL}" "${REPO_DIR}"
+}
+
+# After cloning as root, hand the checkout back to the deploy user.
+fix_repo_ownership() {
+  local deploy_user="${SUDO_USER:-${DEPLOY_USER:-}}"
+  if [[ -z "$deploy_user" || "$deploy_user" == "root" ]]; then
+    return
+  fi
+  if [[ ! -d "${REPO_DIR}" ]]; then
+    return
+  fi
+
+  log "Setting ownership of ${REPO_DIR} to ${deploy_user}"
+  chown -R "${deploy_user}:${deploy_user}" "${REPO_DIR}"
 }
 
 # Add swap on small VPS to reduce OOM kills during Docker builds and peaks.
@@ -223,10 +292,14 @@ EOF
 }
 
 main() {
+  resolve_repo_dir
   require_root
   log "Repository: ${REPO_DIR}"
   log "Deploy root: ${DEPLOY_ROOT}"
 
+  install_git
+  ensure_repo
+  fix_repo_ownership
   setup_swap
   install_docker
   add_deploy_user_to_docker
