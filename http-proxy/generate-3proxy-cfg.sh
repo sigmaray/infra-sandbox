@@ -25,7 +25,7 @@ source "${ENV_FILE}"
 : "${HTTP_PROXY_USER:?HTTP_PROXY_USER is required in .env}"
 : "${HTTP_PROXY_PASSWORD:?HTTP_PROXY_PASSWORD is required in .env}"
 
-# Write 3proxy config: Docker DNS + public DNS, auth, single user, port 3128.
+# Write 3proxy config: Docker DNS + public DNS, auth, HTTP + SOCKS listeners.
 cat > "${CFG_FILE}" <<EOF
 nserver 127.0.0.11
 nserver 8.8.8.8
@@ -36,6 +36,7 @@ auth strong
 users ${HTTP_PROXY_USER}:CL:${HTTP_PROXY_PASSWORD}
 allow ${HTTP_PROXY_USER}
 proxy -p3128
+socks -p1080
 EOF
 
 # Restrict read access — file contains the proxy password.

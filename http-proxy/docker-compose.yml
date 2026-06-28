@@ -5,6 +5,7 @@ services:
     restart: unless-stopped
     ports:
       - "${HTTP_PROXY_PORT:-3128}:3128"
+      - "${SOCKS_PROXY_PORT:-1080}:1080"
     volumes:
       - ./3proxy.cfg:/etc/3proxy/3proxy.cfg:ro
     networks:
