@@ -4,7 +4,7 @@
 #
 # Reads HTTP_PROXY_USER and HTTP_PROXY_PASSWORD from .env and writes a
 # 3proxy config file with DNS, auth, and proxy listener settings.
-# Called by setup-vps.sh, stack-up.sh, and update-projects.sh before starting
+# Called by generate-env-files.sh, setup-vps.sh, stack-up.sh, and update-projects.sh
 # the http-proxy container.
 #
 set -euo pipefail

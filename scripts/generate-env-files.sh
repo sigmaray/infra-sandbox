@@ -4,7 +4,8 @@
 #
 # Copies each project's .env.example to .env (when missing) and replaces
 # placeholder passwords with cryptographically random values. Shared secrets
-# (PostgreSQL, MinIO, DB users) stay consistent across services.
+# (PostgreSQL, MinIO, DB users) stay consistent across services. Regenerates
+# http-proxy/3proxy.cfg when http-proxy/.env is created.
 #
 # Usage:
 #   DEPLOY_ROOT=/opt/projects ./scripts/generate-env-files.sh
@@ -56,8 +57,9 @@ wg_easy_password_hash() {
   local password="$1"
   local hash
 
+  # wg-easy:15 removed wgpw; :14 still ships the hash utility (bcrypt output is compatible).
   hash="$(
-    docker run --rm ghcr.io/wg-easy/wg-easy:15 wgpw "$password" 2>/dev/null \
+    docker run --rm ghcr.io/wg-easy/wg-easy:14 wgpw "$password" 2>/dev/null \
       | sed -n "s/^PASSWORD_HASH='\(.*\)'/\1/p"
   )"
   [[ -n "$hash" ]] || return 1
@@ -68,6 +70,17 @@ wg_easy_password_hash() {
 should_create_env() {
   local env_file="$1"
   [[ ! -f "$env_file" ]] || [[ "$ONLY_IF_MISSING" != "1" ]]
+}
+
+HTTP_PROXY_ENV_CREATED=0
+
+generate_http_proxy_cfg() {
+  local http_proxy_dir="${DEPLOY_ROOT}/http-proxy"
+  local gen_script="${http_proxy_dir}/generate-3proxy-cfg.sh"
+
+  [[ -f "$gen_script" ]] || die "Missing ${gen_script}"
+  bash "$gen_script"
+  log "Generated ${http_proxy_dir}/3proxy.cfg from .env"
 }
 
 write_pgadmin_servers_json() {
@@ -127,7 +140,7 @@ generate_secrets() {
   WG_EASY_UI_PASSWORD="$(random_password)"
 
   WG_EASY_PASSWORD_HASH="$(wg_easy_password_hash "$WG_EASY_UI_PASSWORD")" \
-    || die "Failed to generate WireGuard password hash (is Docker available?)"
+    || die "Failed to generate WireGuard password hash (is Docker available and ghcr.io/wg-easy/wg-easy:14 pullable?)"
 }
 
 create_env_from_example() {
@@ -183,6 +196,7 @@ create_env_from_example() {
       if [[ "$USE_TEST_SECRETS" == "1" ]]; then
         set_env_var "$env_file" HTTP_PROXY_USER "test-proxy-user"
       fi
+      HTTP_PROXY_ENV_CREATED=1
       ;;
     wg-easy)
       set_env_var "$env_file" PASSWORD_HASH "$WG_EASY_PASSWORD_HASH"
@@ -214,6 +228,10 @@ main() {
 
   if [[ "$SAVE_CREDENTIALS" == "1" ]]; then
     write_credentials_file
+  fi
+
+  if [[ "$HTTP_PROXY_ENV_CREATED" -eq 1 ]]; then
+    generate_http_proxy_cfg
   fi
 }
 
