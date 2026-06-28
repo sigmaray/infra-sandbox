@@ -59,8 +59,11 @@ EOF
 
   cat > "${STACK_ROOT}/reverse-proxy/.env" <<EOF
 FRESHRSS_HOST=freshrss.localhost
+FRESHRSS_ALT_HOST=freshrss.sigmalocal
 FEEDS_HOST=feeds.localhost
+FEEDS_ALT_HOST=feeds.sigmalocal
 BLOG_HOST=blog.localhost
+BLOG_ALT_HOST=blog.sigmalocal
 CADDY_HTTP_PORT=80
 EOF
 

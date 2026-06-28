@@ -96,7 +96,7 @@ This script:
 | Go Blog   | http://127.0.0.1:8083        | `admin` / `admin`      |
 | RSS feeds | http://127.0.0.1:8082/feeds/ | — (no auth)            |
 
-The same services are also available through Caddy on port 80 via `freshrss.localhost`, `feeds.localhost`, and `blog.localhost`.
+The same services are also available through Caddy on port 80 via `freshrss.localhost`, `feeds.localhost`, and `blog.localhost` (or the alternate `*.sigmalocal` hostnames — see `reverse-proxy/.env.example`).
 
 ### 5. Run tests
 
@@ -206,7 +206,8 @@ Creates two databases on first start: `freshrss` and `goblog`. Each has a dedica
 
 ### Reverse proxy (`reverse-proxy/.env`)
 
-- `FRESHRSS_HOST`, `FEEDS_HOST`, `BLOG_HOST` — hostnames served by Caddy
+- `FRESHRSS_HOST`, `FEEDS_HOST`, `BLOG_HOST` — primary hostnames served by Caddy
+- `FRESHRSS_ALT_HOST`, `FEEDS_ALT_HOST`, `BLOG_ALT_HOST` — alternate hostnames (default `*.sigmalocal`; resolve them via `/etc/hosts` or local DNS)
 - `CADDY_HTTP_PORT` — host port for the proxy (default `80`)
 
 ### Setup script variables

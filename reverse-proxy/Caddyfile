@@ -1,11 +1,11 @@
-http://{$FRESHRSS_HOST:freshrss.localhost} {
+http://{$FRESHRSS_HOST:freshrss.localhost}, {$FRESHRSS_ALT_HOST:freshrss.sigmalocal} {
 	reverse_proxy freshrss:80
 }
 
-http://{$FEEDS_HOST:feeds.localhost} {
+http://{$FEEDS_HOST:feeds.localhost}, {$FEEDS_ALT_HOST:feeds.sigmalocal} {
 	reverse_proxy static-server:80
 }
 
-http://{$BLOG_HOST:blog.localhost} {
+http://{$BLOG_HOST:blog.localhost}, {$BLOG_ALT_HOST:blog.sigmalocal} {
 	reverse_proxy go-blog:8083
 }
