@@ -138,6 +138,11 @@ verify_postgres_databases() {
   log "PostgreSQL databases verified"
 }
 
+seed_go_blog_users() {
+  log "Seeding go-blog test admin user"
+  docker exec go-blog ./blog users-seed
+}
+
 main() {
   require_docker
   log "Stack root: ${STACK_ROOT}"
@@ -156,6 +161,7 @@ main() {
 
   compose_up go-blog
   wait_for_container go-blog
+  seed_go_blog_users
 
   compose_up reverse-proxy
   wait_for_container reverse-proxy

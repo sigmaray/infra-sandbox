@@ -1,0 +1,31 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: go-blog-e2e-postgres
+    environment:
+      POSTGRES_USER: goblog
+      POSTGRES_PASSWORD: test-goblog-db
+      POSTGRES_DB: goblog
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U goblog -d goblog"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+  app:
+    build: .
+    container_name: go-blog-e2e-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      GO_BLOG_HTTP_PORT: 8083
+      GO_BLOG_DATABASE_HOST: postgres
+      GO_BLOG_DATABASE_PORT: 5432
+      GO_BLOG_DATABASE_NAME: goblog
+      GO_BLOG_DATABASE_USER: goblog
+      GO_BLOG_DATABASE_PASSWORD: test-goblog-db
+    ports:
+      - "${GO_BLOG_HTTP_PORT:-18083}:8083"

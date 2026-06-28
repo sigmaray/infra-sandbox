@@ -20,4 +20,4 @@ COPY --from=builder /app/templates ./templates
 
 EXPOSE 8083
 
-CMD ["./blog"]
+CMD ["./blog", "server"]
