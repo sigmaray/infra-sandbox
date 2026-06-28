@@ -96,7 +96,7 @@ npm run stack:up
 | Go Blog   | http://127.0.0.1:8083        | `admin` / `admin`      |
 | RSS-ленты | http://127.0.0.1:8082/feeds/ | — (без авторизации)    |
 
-Те же сервисы доступны через Caddy на 80 порту: `freshrss.localhost`, `feeds.localhost` и `blog.localhost`.
+Те же сервисы доступны через Caddy на 80 порту: `freshrss.localhost`, `feeds.localhost` и `blog.localhost` (или альтернативные `*.sigmalocal` — см. `reverse-proxy/.env.example`).
 
 ### 5. Запустить тесты
 
@@ -206,7 +206,8 @@ REPO_DIR=~/infra-sandbox ./scripts/update-projects.sh
 
 ### Reverse Proxy (`reverse-proxy/.env`)
 
-- `FRESHRSS_HOST`, `FEEDS_HOST`, `BLOG_HOST` — хосты, которые обслуживает Caddy
+- `FRESHRSS_HOST`, `FEEDS_HOST`, `BLOG_HOST` — основные хосты, которые обслуживает Caddy
+- `FRESHRSS_ALT_HOST`, `FEEDS_ALT_HOST`, `BLOG_ALT_HOST` — альтернативные хосты (по умолчанию `*.sigmalocal`; настройте резолвинг через `/etc/hosts` или локальный DNS)
 - `CADDY_HTTP_PORT` — порт reverse proxy на хосте (по умолчанию `80`)
 
 ### Переменные скрипта установки
