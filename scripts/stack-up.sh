@@ -29,6 +29,8 @@ HTTP_PROXY_PORT="${HTTP_PROXY_PORT:-3128}"
 SOCKS_PROXY_PORT="${SOCKS_PROXY_PORT:-1080}"
 MINIO_API_PORT="${MINIO_API_PORT:-9002}"
 MINIO_CONSOLE_PORT="${MINIO_CONSOLE_PORT:-9003}"
+WG_EASY_WEB_PORT="${WG_EASY_WEB_PORT:-51821}"
+WG_EASY_WG_PORT="${WG_EASY_WG_PORT:-51820}"
 
 POSTGRES_WAIT_TIMEOUT="${POSTGRES_WAIT_TIMEOUT:-120}"
 CONTAINER_WAIT_TIMEOUT="${CONTAINER_WAIT_TIMEOUT:-120}"
@@ -163,6 +165,16 @@ MINIO_ROOT_USER=test-minio-admin
 MINIO_ROOT_PASSWORD=test-minio-password
 MINIO_BUCKET=pg-backups
 BACKUP_RETENTION_DAYS=30
+EOF
+
+  cat > "${STACK_ROOT}/wg-easy/.env" <<'EOF'
+WG_HOST=127.0.0.1
+PASSWORD_HASH=$$2a$$12$$Ssl6xzD/0HbOPYvGiKczDuTngT3TSqNNn37le52ifQNtg8UmYFPsO
+LANG=en
+EOF
+  cat >> "${STACK_ROOT}/wg-easy/.env" <<EOF
+WG_EASY_WEB_PORT=${WG_EASY_WEB_PORT}
+WG_EASY_WG_PORT=${WG_EASY_WG_PORT}
 EOF
 }
 
@@ -325,6 +337,9 @@ main() {
   compose_up portainer
   wait_for_container portainer
   init_portainer_admin
+
+  compose_up wg-easy
+  wait_for_container wg-easy
 
   bash "${STACK_ROOT}/http-proxy/generate-3proxy-cfg.sh"
   compose_up http-proxy

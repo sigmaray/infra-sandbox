@@ -30,11 +30,11 @@ DOCKER_NETWORK="${DOCKER_NETWORK:-projects-net}"
 GIT_REMOTE="${GIT_REMOTE:-origin}"
 GIT_BRANCH="${GIT_BRANCH:-}"
 
-ALL_PROJECTS=(postgresql s3-storage freshrss static-server go-blog pgadmin portainer http-proxy reverse-proxy pg-backup)
+ALL_PROJECTS=(postgresql s3-storage freshrss static-server go-blog pgadmin portainer wg-easy http-proxy reverse-proxy pg-backup)
 # Projects that ship a Dockerfile and need "docker compose up --build".
 BUILD_PROJECTS=(go-blog pg-backup)
 # Projects that use published images and can benefit from "docker compose pull".
-IMAGE_PROJECTS=(postgresql s3-storage freshrss static-server pgadmin portainer http-proxy reverse-proxy)
+IMAGE_PROJECTS=(postgresql s3-storage freshrss static-server pgadmin portainer wg-easy http-proxy reverse-proxy)
 
 log() { printf '[update-projects] %s\n' "$*"; }
 die() { log "ERROR: $*"; exit 1; }
@@ -251,7 +251,7 @@ restart_projects() {
     compose_up_project s3-storage
   fi
 
-  for project in static-server freshrss go-blog http-proxy reverse-proxy; do
+  for project in static-server freshrss go-blog wg-easy http-proxy reverse-proxy; do
     project_is_selected "$project" || continue
     printf '%s\n' "${RESTART_PROJECTS[@]}" | grep -qx "$project" || continue
     compose_up_project "$project"

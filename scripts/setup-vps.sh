@@ -30,7 +30,7 @@ DOCKER_NETWORK="${DOCKER_NETWORK:-projects-net}"
 SWAP_SIZE_GB="${SWAP_SIZE_GB:-2}"
 
 # All infra projects copied from the repo into DEPLOY_ROOT.
-PROJECTS=(postgresql s3-storage freshrss static-server go-blog pgadmin portainer http-proxy reverse-proxy pg-backup)
+PROJECTS=(postgresql s3-storage freshrss static-server go-blog pgadmin portainer wg-easy http-proxy reverse-proxy pg-backup)
 
 log() { printf '[setup-vps] %s\n' "$*"; }
 die() { log "ERROR: $*"; exit 1; }
@@ -276,10 +276,13 @@ Start services in order:
   5. Go Blog:
      cd ${DEPLOY_ROOT}/go-blog && docker compose up -d
 
-  6. Reverse Proxy (Caddy):
+  6. WireGuard VPN (wg-easy):
+     cd ${DEPLOY_ROOT}/wg-easy && docker compose up -d
+
+  7. Reverse Proxy (Caddy):
      cd ${DEPLOY_ROOT}/reverse-proxy && docker compose up -d
 
-  7. PostgreSQL backups (daily cron to S3):
+  8. PostgreSQL backups (daily cron to S3):
      cd ${DEPLOY_ROOT}/pg-backup && docker compose up -d --build
 
 Edit .env files in each directory and set strong passwords before production use.

@@ -37,6 +37,7 @@ main() {
   down_project pg-backup
   down_project reverse-proxy
   down_project http-proxy
+  down_project wg-easy
   down_project portainer
   down_project pgadmin
   down_project go-blog
