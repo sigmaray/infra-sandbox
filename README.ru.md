@@ -1,6 +1,6 @@
 # infra-sandbox
 
-Песочница инфраструктуры на Docker: небольшой набор сервисов для VPS или локальной разработки. В стек входят общая база PostgreSQL, RSS-читалка FreshRSS, статический сервер с тестовыми лентами, блог на Go и reverse proxy на Caddy.
+Песочница инфраструктуры на Docker: небольшой набор сервисов для VPS или локальной разработки. В стек входят общая база PostgreSQL, RSS-читалка FreshRSS, статический сервер с тестовыми лентами, блог на Go, Portainer (веб-интерфейс для Docker), pgAdmin (веб-интерфейс для PostgreSQL) и reverse proxy на Caddy.
 
 **[English version →](README.md)**
 
@@ -23,14 +23,18 @@
 │  │ shared-      │   │ FreshRSS │   │ go-blog  │                  │
 │  │ postgres     │◄──│ :8081    │   │ :8083    │                  │
 │  │              │   │          │   │          │                  │
-│  │ БД freshrss  │   └────┬─────┘   └────┬─────┘                  │
-│  │ БД goblog    │        │              │                        │
-│  └──────────────┘        │ подписка на  │                        │
-│                          ▼              ▼                        │
-│                    ┌──────────────┐  ┌──────────────┐            │
-│                    │ static-server│  │ Caddy        │            │
-│                    │ (nginx)      │  │ :80          │            │
-│                    │ :8082        │  └──────────────┘            │
+│  │ БД freshrss  │   └────┬─────┘   └────┬─────┘   ┌──────────┐   │
+│  │ БД goblog    │        │              │         │ pgAdmin  │   │
+│  └──────▲───────┘        │ подписка на  │         │ :8085    │   │
+│         │                ▼              ▼         └──────────┘   │
+│         │          ┌──────────────┐  ┌──────────────┐            │
+│         │          │ static-server│  │ Caddy        │            │
+│         │          │ (nginx)      │  │ :80          │            │
+│         │          │ :8082        │  └──────────────┘            │
+│         │          └──────────────┘                               │
+│         │          ┌──────────────┐                               │
+│         └──────────│ Portainer    │  (Docker socket)              │
+│                    │ :8084        │                               │
 │                    └──────────────┘                               │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -45,6 +49,8 @@
 | FreshRSS           | `freshrss`       | 8081 | Самостоятельно размещаемая RSS-читалка   |
 | Статический сервер | `static-server`  | 8082 | Nginx с тестовыми RSS-лентами            |
 | Go Blog            | `go-blog`        | 8083 | Простой блог на Go (Gin + GORM)          |
+| Portainer          | `portainer`      | 8084 | Веб-интерфейс для управления Docker      |
+| pgAdmin            | `pgadmin`        | 8085 | Веб-интерфейс для администрирования PostgreSQL |
 | Reverse Proxy      | `reverse-proxy`  | 80   | Caddy для маршрутизации `*.localhost`    |
 
 Порты можно изменить через переменные окружения (см. [Конфигурация](#конфигурация)).
@@ -92,11 +98,17 @@ npm run stack:up
 
 | Сервис    | URL                          | Логин по умолчанию     |
 |-----------|------------------------------|------------------------|
-| FreshRSS  | http://127.0.0.1:8081        | `admin` / `test-admin` |
-| Go Blog   | http://127.0.0.1:8083        | `admin` / `admin`      |
-| RSS-ленты | http://127.0.0.1:8082/feeds/ | — (без авторизации)    |
+| FreshRSS  | http://127.0.0.1:8081        | `admin` / `test-admin`                    |
+| Go Blog   | http://127.0.0.1:8083        | `admin` / `admin`                         |
+| RSS-ленты | http://127.0.0.1:8082/feeds/ | — (без авторизации)                       |
+| Portainer | http://127.0.0.1:8084        | `admin` / `test-portainer-admin-password` |
+| pgAdmin   | http://127.0.0.1:8085        | `admin@example.com` / `test-pgadmin`      |
 
-Те же сервисы доступны через Caddy на 80 порту: `freshrss.localhost`, `feeds.localhost` и `blog.localhost` (или альтернативные `*.sigmalocal` — см. `reverse-proxy/.env.example`).
+Те же сервисы доступны через Caddy на 80 порту: `freshrss.localhost`, `feeds.localhost`, `blog.localhost`, `portainer.localhost` и `pgadmin.localhost` (или альтернативные `*.sigmalocal` — см. `reverse-proxy/.env.example`).
+
+**Portainer** подключается к локальному Docker через `/var/run/docker.sock` и показывает все контейнеры стека. При первом запуске `stack-up.sh` автоматически создаёт учётную запись администратора (тестовые данные выше).
+
+**pgAdmin** поставляется с преднастроенным подключением к `shared-postgres` через `pgadmin/servers.json`. После входа раскройте **Servers → shared-postgres**, чтобы просмотреть базы (`freshrss`, `goblog` и др.). Перед продакшеном обновите `servers.json` и пароли в `.env`.
 
 ### 5. Запустить тесты
 
@@ -155,6 +167,8 @@ cd /opt/projects/postgresql && docker compose up -d
 cd /opt/projects/freshrss   && docker compose up -d
 cd /opt/projects/static-server && docker compose up -d
 cd /opt/projects/go-blog    && docker compose up -d
+cd /opt/projects/pgadmin    && docker compose up -d
+cd /opt/projects/portainer  && docker compose up -d
 cd /opt/projects/reverse-proxy && docker compose up -d
 ```
 
@@ -204,10 +218,28 @@ REPO_DIR=~/infra-sandbox ./scripts/update-projects.sh
 - RSS-файлы лежат в `static-server/content/feeds/`
 - `content/manifest.json` описывает ленты для автоматических тестов
 
+### Portainer (`portainer/.env`)
+
+- `PORTAINER_HTTP_PORT` — порт на хосте (по умолчанию `8084`)
+- Монтирует `/var/run/docker.sock` для управления контейнерами на хосте
+- При первом входе создайте учётную запись администратора (в тестовом/CI окружении это делает `stack-up.sh`)
+
+### pgAdmin (`pgadmin/.env`)
+
+- `PGADMIN_HTTP_PORT` — порт на хосте (по умолчанию `8085`)
+- `PGADMIN_DEFAULT_EMAIL`, `PGADMIN_DEFAULT_PASSWORD` — учётные данные для входа
+- `PGADMIN_CONFIG_SERVER_MODE` — многопользовательский режим (по умолчанию `True`)
+- `PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED` — отключить запрос master password для локального использования (по умолчанию `False`)
+- `PGADMIN_SERVER_*` — учётные данные для преднастроенного подключения к PostgreSQL в `servers.json`
+
+Файл `pgadmin/servers.json` описывает сервер `shared-postgres`. Поле `Password` должно совпадать с `POSTGRES_PASSWORD` из `postgresql/.env`.
+
 ### Reverse Proxy (`reverse-proxy/.env`)
 
 - `FRESHRSS_HOST`, `FEEDS_HOST`, `BLOG_HOST` — основные хосты, которые обслуживает Caddy
 - `FRESHRSS_ALT_HOST`, `FEEDS_ALT_HOST`, `BLOG_ALT_HOST` — альтернативные хосты (по умолчанию `*.sigmalocal`; настройте резолвинг через `/etc/hosts` или локальный DNS)
+- `PORTAINER_HOST`, `PGADMIN_HOST` — хосты для Portainer и pgAdmin
+- `PORTAINER_ALT_HOST`, `PGADMIN_ALT_HOST` — альтернативные хосты (по умолчанию `portainer.sigmalocal`, `pgadmin.sigmalocal`)
 - `CADDY_HTTP_PORT` — порт reverse proxy на хосте (по умолчанию `80`)
 
 ### Переменные скрипта установки
@@ -235,6 +267,8 @@ infra-sandbox/
 ├── freshrss/               # FreshRSS
 ├── static-server/          # Nginx с тестовыми RSS-лентами
 ├── go-blog/                # Блог на Go (Gin, GORM, миграции Goose)
+├── pgadmin/                # pgAdmin 4 с преднастроенным сервером PostgreSQL
+├── portainer/              # Portainer CE для управления Docker
 ├── reverse-proxy/          # Caddy для localhost-поддоменов
 ├── tests/                  # End-to-end тесты Playwright
 ├── .github/workflows/ci.yml
@@ -253,7 +287,9 @@ infra-sandbox/
 | `infra.spec.ts`      | Здоровье PostgreSQL, смоук-проверки сервисов, RSS        |
 | `freshrss.spec.ts`   | Вход в FreshRSS, импорт ленты со static-server           |
 | `go-blog.spec.ts`    | Вход в go-blog, посты, пагинация, фильтр по тегам        |
-| `caddy.spec.ts`      | Маршруты reverse proxy для FreshRSS, лент и go-blog      |
+| `caddy.spec.ts`      | Маршруты reverse proxy для всех сервисов                 |
+| `portainer.spec.ts`  | Вход в Portainer, API-авторизация, список контейнеров    |
+| `pgadmin.spec.ts`    | Вход в pgAdmin, преднастроенный сервер, доступ к БД      |
 
 В CI стек поднимается до тестов (`SKIP_STACK_SETUP=1` говорит Playwright не запускать его повторно). Локально `global-setup.ts` автоматически вызывает `stack-up.sh`, если не задан `SKIP_STACK_SETUP=1`.
 
@@ -304,7 +340,8 @@ docker network create projects-net
 Переопределите порты при запуске:
 
 ```bash
-FRESHRSS_HTTP_PORT=9081 STATIC_SERVER_HTTP_PORT=9082 GO_BLOG_HTTP_PORT=9083 npm run stack:up
+FRESHRSS_HTTP_PORT=9081 STATIC_SERVER_HTTP_PORT=9082 GO_BLOG_HTTP_PORT=9083 \
+PORTAINER_HTTP_PORT=9084 PGADMIN_HTTP_PORT=9085 npm run stack:up
 ```
 
 ---
