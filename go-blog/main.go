@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"html/template"
 	"log"
+	"net/http"
 	"os"
 
 	"go-blog/handlers"
@@ -70,6 +71,13 @@ func main() {
 	r := gin.Default()
 
 	store := cookie.NewStore([]byte("secret_session_key"))
+	store.Options(sessions.Options{
+		Path:     "/",
+		MaxAge:   86400 * 30,
+		HttpOnly: true,
+		Secure:   false,
+		SameSite: http.SameSiteLaxMode,
+	})
 	r.Use(sessions.Sessions("mysession", store))
 
 	h := handlers.NewHandler(gormDB)
