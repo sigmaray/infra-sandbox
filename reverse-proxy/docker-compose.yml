@@ -10,6 +10,12 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
     networks:
       - projects-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget --server-response --spider http://127.0.0.1:80/ 2>&1 | grep -q 'HTTP/'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
 
 networks:
   projects-net:

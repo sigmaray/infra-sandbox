@@ -30,6 +30,12 @@ services:
       - freshrss_extensions:/var/www/FreshRSS/extensions
     networks:
       - projects-net
+    healthcheck:
+      test: ["CMD-SHELL", "php -r \"exit(@file_get_contents('http://127.0.0.1/')===false?1:0);\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
     deploy:
       resources:
         limits:

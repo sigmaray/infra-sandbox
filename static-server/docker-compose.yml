@@ -9,6 +9,12 @@ services:
       - ./content:/usr/share/nginx/html:ro
     networks:
       - projects-net
+    healthcheck:
+      test: ["CMD-SHELL", "pidof nginx >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     deploy:
       resources:
         limits:

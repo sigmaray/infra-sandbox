@@ -10,6 +10,12 @@ services:
       - ./3proxy.cfg:/etc/3proxy/3proxy.cfg:ro
     networks:
       - projects-net
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 3128 && nc -z localhost 1080"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     deploy:
       resources:
         limits:

@@ -13,7 +13,7 @@ FROM alpine:3.21.3
 
 WORKDIR /app
 
-RUN apk add --no-cache tzdata
+RUN apk add --no-cache tzdata wget
 
 COPY --from=builder /app/blog .
 COPY --from=builder /app/templates ./templates

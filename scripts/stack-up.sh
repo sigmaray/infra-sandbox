@@ -306,38 +306,37 @@ main() {
   verify_postgres_databases
 
   compose_up s3-storage
-  wait_for_container s3-storage
-  wait_for_s3_storage
+  wait_for_healthy s3-storage
 
   compose_up static-server
-  wait_for_container static-server
+  wait_for_healthy static-server
 
   compose_up freshrss
-  wait_for_container freshrss
+  wait_for_healthy freshrss
 
   compose_up go-blog
-  wait_for_container go-blog
+  wait_for_healthy go-blog
   seed_go_blog_users
 
   compose_up pgadmin
   wait_for_healthy pgadmin
 
   compose_up portainer
-  wait_for_container portainer
+  wait_for_healthy portainer
   init_portainer_admin
 
   compose_up wg-easy
-  wait_for_container wg-easy
+  wait_for_healthy wg-easy
 
   bash "${STACK_ROOT}/http-proxy/generate-3proxy-cfg.sh"
   compose_up http-proxy
-  wait_for_container http-proxy
+  wait_for_healthy http-proxy
 
   compose_up reverse-proxy
-  wait_for_container reverse-proxy
+  wait_for_healthy reverse-proxy
 
   compose_up pg-backup
-  wait_for_container pg-backup
+  wait_for_healthy pg-backup
 
   log "Stack is ready"
 }

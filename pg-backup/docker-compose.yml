@@ -15,6 +15,12 @@ services:
       BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
     networks:
       - projects-net
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep crond >/dev/null && curl -sf http://s3-storage:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
     deploy:
       resources:
         limits:
