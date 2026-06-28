@@ -16,27 +16,28 @@
 Все сервисы используют один экземпляр PostgreSQL и общую Docker-сеть `projects-net`.
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                     Docker-сеть: projects-net                     │
-│                                                                   │
-│  ┌──────────────┐   ┌──────────┐   ┌──────────┐                  │
-│  │ shared-      │   │ FreshRSS │   │ go-blog  │                  │
-│  │ postgres     │◄──│ :8081    │   │ :8083    │                  │
-│  │              │   │          │   │          │                  │
-│  │ БД freshrss  │   └────┬─────┘   └────┬─────┘   ┌──────────┐   │
-│  │ БД goblog    │        │              │         │ pgAdmin  │   │
-│  └──────▲───────┘        │ подписка на  │         │ :8085    │   │
-│         │                ▼              ▼         └──────────┘   │
-│         │          ┌──────────────┐  ┌──────────────┐            │
-│         │          │ static-server│  │ Caddy        │            │
-│         │          │ (nginx)      │  │ :80          │            │
-│         │          │ :8082        │  └──────────────┘            │
-│         │          └──────────────┘                               │
-│         │          ┌──────────────┐                               │
-│         └──────────│ Portainer    │  (Docker socket)              │
-│                    │ :8084        │                               │
-│                    └──────────────┘                               │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│                           Docker-сеть: projects-net                              │
+│                                                                                  │
+│  ┌──────────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐    │
+│  │ shared-      │   │ FreshRSS │   │ go-blog  │   │ pgAdmin  │   │ pg-backup│    │
+│  │ postgres     │◄──│ :8081    │   │ :8083    │   │ :8085    │   │ (cron)   │    │
+│  │              │   │          │   │          │   └──────────┘   └───┬──────┘    │
+│  │ БД freshrss  │   └────┬─────┘   └────┬─────┘                      │           │
+│  │ БД goblog    │        │              │                            ▼           │
+│  └──────▲───────┘        │ подписка на  │                     ┌──────────────┐   │
+│         │                ▼              ▼                     │ s3-storage   │   │
+│         │          ┌──────────────┐  ┌──────────────┐         │ (MinIO)      │   │
+│         │          │ static-server│  │ Caddy        │         │ :9002 (API)  │   │
+│         │          │ (nginx)      │  │ :80          │         │ :9003 (UI)   │   │
+│         │          │ :8082        │  └──────────────┘         └──────────────┘   │
+│         │          └──────────────┘                                              │
+│         │          ┌──────────────┐  ┌──────────────┐         ┌──────────────┐   │
+│         └──────────│ Portainer    │  │ wg-easy      │         │ http-proxy   │   │
+│                    │ :8084        │  │ :51821 (UI)  │         │ :3128 (HTTP) │   │
+│                    └──────────────┘  │ :51820 (UDP) │         │ :1080 (SOCKS)│   │
+│                                      └──────────────┘         └──────────────┘   │
+└──────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -52,6 +53,10 @@
 | Portainer          | `portainer`      | 8084 | Веб-интерфейс для управления Docker      |
 | pgAdmin            | `pgadmin`        | 8085 | Веб-интерфейс для администрирования PostgreSQL |
 | Reverse Proxy      | `reverse-proxy`  | 80   | Caddy для маршрутизации `*.localhost`    |
+| S3 Storage         | `s3-storage`     | 9002/9003 | MinIO объектное хранилище (API / Console) |
+| PG Backup          | `pg-backup`      | —    | Автоматические бэкапы PostgreSQL в MinIO |
+| WireGuard          | `wg-easy`        | 51821/51820 | WireGuard VPN-сервер с веб-интерфейсом |
+| HTTP Proxy         | `http-proxy`     | 3128/1080 | 3proxy HTTP и SOCKS5 прокси          |
 
 Порты можно изменить через переменные окружения (см. [Конфигурация](#конфигурация)).
 
@@ -103,6 +108,10 @@ npm run stack:up
 | RSS-ленты | http://127.0.0.1:8082/feeds/ | — (без авторизации)                       |
 | Portainer | http://127.0.0.1:8084        | `admin` / `test-portainer-admin-password` |
 | pgAdmin   | http://127.0.0.1:8085        | `admin@example.com` / `test-pgadmin`      |
+| S3 Console| http://127.0.0.1:9003        | `test-minio-admin` / `test-minio-password`|
+| WireGuard | http://127.0.0.1:51821       | `test-wg-easy-password`                   |
+| HTTP Proxy| 127.0.0.1:3128               | `test-proxy-user` / `test-proxy-password` |
+| SOCKS Proxy| 127.0.0.1:1080              | `test-proxy-user` / `test-proxy-password` |
 
 Те же сервисы доступны через Caddy на 80 порту: `freshrss.localhost`, `feeds.localhost`, `blog.localhost`, `portainer.localhost` и `pgadmin.localhost` (или альтернативные `*.sigmalocal` — см. `reverse-proxy/.env.example`).
 
@@ -164,12 +173,16 @@ sudo REPO_DIR=~/infra-sandbox ./scripts/setup-vps.sh
 
 ```bash
 cd /opt/projects/postgresql && docker compose up -d
+cd /opt/projects/s3-storage && docker compose up -d
 cd /opt/projects/freshrss   && docker compose up -d
 cd /opt/projects/static-server && docker compose up -d
 cd /opt/projects/go-blog    && docker compose up -d
 cd /opt/projects/pgadmin    && docker compose up -d
 cd /opt/projects/portainer  && docker compose up -d
+cd /opt/projects/wg-easy    && docker compose up -d
+cd /opt/projects/http-proxy && docker compose up -d
 cd /opt/projects/reverse-proxy && docker compose up -d
+cd /opt/projects/pg-backup  && docker compose up -d
 ```
 
 ### 4. Обновление после изменений в коде
@@ -242,6 +255,31 @@ REPO_DIR=~/infra-sandbox ./scripts/update-projects.sh
 - `PORTAINER_ALT_HOST`, `PGADMIN_ALT_HOST` — альтернативные хосты (по умолчанию `portainer.sigmalocal`, `pgadmin.sigmalocal`)
 - `CADDY_HTTP_PORT` — порт reverse proxy на хосте (по умолчанию `80`)
 
+### S3 Storage (`s3-storage/.env`)
+
+- `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD` — учётные данные администратора
+- `MINIO_API_PORT` — порт на хосте для API (по умолчанию `9002`)
+- `MINIO_CONSOLE_PORT` — порт на хосте для веб-интерфейса (по умолчанию `9003`)
+
+### PG Backup (`pg-backup/.env`)
+
+- `POSTGRES_PASSWORD` — пароль пользователя `postgres` (должен совпадать с `postgresql/.env`)
+- `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD` — учётные данные MinIO для загрузки бэкапов
+- Использует cron для ежедневного дампа всех баз данных и загрузки в MinIO.
+
+### WireGuard (`wg-easy/.env`)
+
+- `WG_HOST` — публичный IP или домен вашего VPS
+- `PASSWORD_HASH` — bcrypt-хэш пароля для веб-интерфейса
+- `WG_EASY_WEB_PORT` — порт на хосте для веб-интерфейса (по умолчанию `51821`)
+- `WG_EASY_WG_PORT` — порт на хосте для UDP-трафика WireGuard (по умолчанию `51820`)
+
+### HTTP Proxy (`http-proxy/.env`)
+
+- `HTTP_PROXY_USER`, `HTTP_PROXY_PASSWORD` — учётные данные для прокси
+- `HTTP_PROXY_PORT` — порт на хосте для HTTP-прокси (по умолчанию `3128`)
+- `SOCKS_PROXY_PORT` — порт на хосте для SOCKS5-прокси (по умолчанию `1080`)
+
 ### Переменные скрипта установки
 
 | Переменная       | По умолчанию     | Описание                              |
@@ -262,7 +300,8 @@ infra-sandbox/
 │   ├── setup-vps.sh        # Первичная настройка VPS (Docker, каталоги, сеть)
 │   ├── stack-up.sh         # Запуск полного стека для локальных тестов и CI
 │   ├── stack-down.sh       # Остановка стека и удаление томов
-│   └── update-projects.sh  # git pull + синхронизация + перезапуск
+│   ├── update-projects.sh  # git pull + синхронизация + перезапуск
+│   └── generate-env-files.sh # Генерация случайных паролей для .env файлов
 ├── postgresql/             # Общий PostgreSQL 16
 ├── freshrss/               # FreshRSS
 ├── static-server/          # Nginx с тестовыми RSS-лентами
@@ -270,6 +309,10 @@ infra-sandbox/
 ├── pgadmin/                # pgAdmin 4 с преднастроенным сервером PostgreSQL
 ├── portainer/              # Portainer CE для управления Docker
 ├── reverse-proxy/          # Caddy для localhost-поддоменов
+├── s3-storage/             # MinIO S3-совместимое объектное хранилище
+├── pg-backup/              # Автоматические бэкапы PostgreSQL в MinIO
+├── wg-easy/                # WireGuard VPN-сервер с веб-интерфейсом
+├── http-proxy/             # 3proxy HTTP и SOCKS5 прокси
 ├── tests/                  # End-to-end тесты Playwright
 ├── .github/workflows/ci.yml
 ├── package.json
@@ -290,6 +333,10 @@ infra-sandbox/
 | `caddy.spec.ts`      | Маршруты reverse proxy для всех сервисов                 |
 | `portainer.spec.ts`  | Вход в Portainer, API-авторизация, список контейнеров    |
 | `pgadmin.spec.ts`    | Вход в pgAdmin, преднастроенный сервер, доступ к БД      |
+| `s3-storage.spec.ts` | Доступность MinIO API и создание бакетов                 |
+| `pg-backup.spec.ts`  | Выполнение скрипта бэкапа и проверка загрузки в MinIO    |
+| `wg-easy.spec.ts`    | Вход в UI WireGuard и генерация конфигурации клиента     |
+| `http-proxy.spec.ts` | Подключение к HTTP и SOCKS5 прокси, аутентификация       |
 
 В CI стек поднимается до тестов (`SKIP_STACK_SETUP=1` говорит Playwright не запускать его повторно). Локально `global-setup.ts` автоматически вызывает `stack-up.sh`, если не задан `SKIP_STACK_SETUP=1`.
 
