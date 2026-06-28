@@ -2,9 +2,10 @@
 #
 # Start the full project stack for local development and CI testing.
 #
-# Writes known test credentials into .env files, creates the shared Docker
-# network, starts services in dependency order, waits for health checks, and
-# seeds test data (go-blog admin, Portainer admin).
+# Writes .env files via generate-env-files.sh (skips existing files so passwords
+# are preserved), then applies local port/host overrides for reproducible test runs.
+# Creates the shared Docker network, starts services in dependency order, waits
+# for health checks, and seeds test data (go-blog admin, Portainer admin).
 #
 # Environment (all optional — defaults suit local test runs):
 #   REPO_DIR / DEPLOY_ROOT   Root directory for compose projects
@@ -43,127 +44,52 @@ require_docker() {
   docker compose version >/dev/null 2>&1 || die "Docker Compose plugin is required"
 }
 
-# Overwrite .env files with fixed test values so CI and local runs are reproducible.
-write_test_env_files() {
-  log "Writing test .env files"
+# Replace a single KEY=value line in an env file (safe for arbitrary values).
+set_env_var() {
+  local file="$1" key="$2" value="$3"
+  local tmp line key_prefix
 
-  # PostgreSQL: superuser + credentials for init script (FreshRSS, go-blog DBs).
-  cat > "${STACK_ROOT}/postgresql/.env" <<'EOF'
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=test-postgres-admin
-POSTGRES_DB=postgres
+  [[ -f "$file" ]] || return 0
+  key_prefix="${key}="
+  tmp="$(mktemp)"
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    if [[ "$line" == "${key_prefix}"* ]]; then
+      printf '%s=%s\n' "$key" "$value"
+    else
+      printf '%s\n' "$line"
+    fi
+  done <"$file" >"$tmp"
+  mv "$tmp" "$file"
+}
 
-FRESHRSS_DB_USER=freshrss
-FRESHRSS_DB_PASSWORD=test-freshrss-db
-GO_BLOG_DB_USER=goblog
-GO_BLOG_DB_PASSWORD=test-goblog-db
-EOF
+# Create missing .env files with test credentials; keep existing files unchanged.
+ensure_env_files() {
+  log "Ensuring .env files exist"
+  DEPLOY_ROOT="${STACK_ROOT}" ONLY_IF_MISSING=1 USE_TEST_SECRETS=1 SAVE_CREDENTIALS=0 \
+    bash "${STACK_ROOT}/scripts/generate-env-files.sh"
+}
 
-  cat > "${STACK_ROOT}/freshrss/.env" <<EOF
-TZ=UTC
-CRON_MIN=*/15
+# Update ports and local-only settings without touching passwords or other secrets.
+apply_local_env_overrides() {
+  log "Applying local .env overrides (ports and hosts)"
 
-FRESHRSS_BASE_URL=http://127.0.0.1:${FRESHRSS_PORT}
-FRESHRSS_DB_NAME=freshrss
-FRESHRSS_DB_USER=freshrss
-FRESHRSS_DB_PASSWORD=test-freshrss-db
+  set_env_var "${STACK_ROOT}/freshrss/.env" FRESHRSS_HTTP_PORT "${FRESHRSS_PORT}"
+  set_env_var "${STACK_ROOT}/freshrss/.env" FRESHRSS_BASE_URL "http://127.0.0.1:${FRESHRSS_PORT}"
 
-FRESHRSS_ADMIN_USER=admin
-FRESHRSS_ADMIN_PASSWORD=test-admin
-FRESHRSS_ADMIN_EMAIL=admin@example.com
-FRESHRSS_API_PASSWORD=test-api
-FRESHRSS_LANGUAGE=en
+  set_env_var "${STACK_ROOT}/static-server/.env" STATIC_SERVER_HTTP_PORT "${STATIC_SERVER_PORT}"
+  set_env_var "${STACK_ROOT}/portainer/.env" PORTAINER_HTTP_PORT "${PORTAINER_PORT}"
+  set_env_var "${STACK_ROOT}/pgadmin/.env" PGADMIN_HTTP_PORT "${PGADMIN_PORT}"
+  set_env_var "${STACK_ROOT}/go-blog/.env" GO_BLOG_HTTP_PORT "${GO_BLOG_PORT}"
 
-FRESHRSS_HTTP_PORT=${FRESHRSS_PORT}
-EOF
+  set_env_var "${STACK_ROOT}/http-proxy/.env" HTTP_PROXY_PORT "${HTTP_PROXY_PORT}"
+  set_env_var "${STACK_ROOT}/http-proxy/.env" SOCKS_PROXY_PORT "${SOCKS_PROXY_PORT}"
 
-  cat > "${STACK_ROOT}/static-server/.env" <<EOF
-STATIC_SERVER_HTTP_PORT=${STATIC_SERVER_PORT}
-EOF
+  set_env_var "${STACK_ROOT}/s3-storage/.env" MINIO_API_PORT "${MINIO_API_PORT}"
+  set_env_var "${STACK_ROOT}/s3-storage/.env" MINIO_CONSOLE_PORT "${MINIO_CONSOLE_PORT}"
 
-  # Caddy virtual hosts for local testing (map via /etc/hosts or DNS).
-  cat > "${STACK_ROOT}/reverse-proxy/.env" <<EOF
-FRESHRSS_HOST=freshrss.localhost
-FRESHRSS_ALT_HOST=freshrss.sigmalocal
-FEEDS_HOST=feeds.localhost
-FEEDS_ALT_HOST=feeds.sigmalocal
-BLOG_HOST=blog.localhost
-BLOG_ALT_HOST=blog.sigmalocal
-PORTAINER_HOST=portainer.localhost
-PORTAINER_ALT_HOST=portainer.sigmalocal
-PGADMIN_HOST=pgadmin.localhost
-PGADMIN_ALT_HOST=pgadmin.sigmalocal
-CADDY_HTTP_PORT=80
-EOF
-
-  cat > "${STACK_ROOT}/portainer/.env" <<EOF
-PORTAINER_HTTP_PORT=${PORTAINER_PORT}
-EOF
-
-  cat > "${STACK_ROOT}/pgadmin/.env" <<EOF
-PGADMIN_HTTP_PORT=${PGADMIN_PORT}
-PGADMIN_DEFAULT_EMAIL=admin@example.com
-PGADMIN_DEFAULT_PASSWORD=test-pgadmin
-PGADMIN_CONFIG_SERVER_MODE=True
-PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED=False
-
-PGADMIN_SERVER_HOST=shared-postgres
-PGADMIN_SERVER_PORT=5432
-PGADMIN_SERVER_USERNAME=postgres
-PGADMIN_SERVER_PASSWORD=test-postgres-admin
-EOF
-
-  # Pre-register the shared PostgreSQL server in pgAdmin on first start.
-  sed 's/"Password": "change-me"/"Password": "test-postgres-admin"/' \
-    "${STACK_ROOT}/pgadmin/servers.json.example" > "${STACK_ROOT}/pgadmin/servers.json"
-
-  cat > "${STACK_ROOT}/go-blog/.env" <<EOF
-GO_BLOG_HTTP_PORT=${GO_BLOG_PORT}
-GO_BLOG_SESSION_SECRET=test-go-blog-session-secret-32chars
-GO_BLOG_SESSION_SECURE=0
-
-GO_BLOG_DATABASE_HOST=shared-postgres
-GO_BLOG_DATABASE_PORT=5432
-GO_BLOG_DATABASE_NAME=goblog
-GO_BLOG_DATABASE_USER=goblog
-GO_BLOG_DATABASE_PASSWORD=test-goblog-db
-EOF
-
-  cat > "${STACK_ROOT}/http-proxy/.env" <<EOF
-HTTP_PROXY_PORT=${HTTP_PROXY_PORT}
-SOCKS_PROXY_PORT=${SOCKS_PROXY_PORT}
-HTTP_PROXY_USER=test-proxy-user
-HTTP_PROXY_PASSWORD=test-proxy-password
-EOF
-
-  cat > "${STACK_ROOT}/s3-storage/.env" <<EOF
-MINIO_ROOT_USER=test-minio-admin
-MINIO_ROOT_PASSWORD=test-minio-password
-MINIO_API_PORT=${MINIO_API_PORT}
-MINIO_CONSOLE_PORT=${MINIO_CONSOLE_PORT}
-MINIO_BUCKET=pg-backups
-EOF
-
-  cat > "${STACK_ROOT}/pg-backup/.env" <<EOF
-POSTGRES_HOST=shared-postgres
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=test-postgres-admin
-MINIO_ENDPOINT=http://s3-storage:9000
-MINIO_ROOT_USER=test-minio-admin
-MINIO_ROOT_PASSWORD=test-minio-password
-MINIO_BUCKET=pg-backups
-BACKUP_RETENTION_DAYS=30
-EOF
-
-  cat > "${STACK_ROOT}/wg-easy/.env" <<'EOF'
-WG_HOST=127.0.0.1
-PASSWORD_HASH=$$2a$$12$$Ssl6xzD/0HbOPYvGiKczDuTngT3TSqNNn37le52ifQNtg8UmYFPsO
-LANG=en
-EOF
-  cat >> "${STACK_ROOT}/wg-easy/.env" <<EOF
-WG_EASY_WEB_PORT=${WG_EASY_WEB_PORT}
-WG_EASY_WG_PORT=${WG_EASY_WG_PORT}
-EOF
+  set_env_var "${STACK_ROOT}/wg-easy/.env" WG_HOST "127.0.0.1"
+  set_env_var "${STACK_ROOT}/wg-easy/.env" WG_EASY_WEB_PORT "${WG_EASY_WEB_PORT}"
+  set_env_var "${STACK_ROOT}/wg-easy/.env" WG_EASY_WG_PORT "${WG_EASY_WG_PORT}"
 }
 
 ensure_network() {
@@ -297,7 +223,8 @@ seed_go_blog_users() {
 main() {
   require_docker
   log "Stack root: ${STACK_ROOT}"
-  write_test_env_files
+  ensure_env_files
+  apply_local_env_overrides
   ensure_network
 
   # Start shared infrastructure first, then apps that depend on it.

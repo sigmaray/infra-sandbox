@@ -13,12 +13,14 @@
 #   DEPLOY_ROOT        Target directory (default: parent of scripts/)
 #   ONLY_IF_MISSING    Skip projects that already have .env (default: 1)
 #   SAVE_CREDENTIALS   Write DEPLOY_ROOT/.initial-credentials (default: 1)
+#   USE_TEST_SECRETS   Use fixed test credentials (for stack-up.sh / CI; default: 0)
 #
 set -euo pipefail
 
 DEPLOY_ROOT="${DEPLOY_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 ONLY_IF_MISSING="${ONLY_IF_MISSING:-1}"
 SAVE_CREDENTIALS="${SAVE_CREDENTIALS:-1}"
+USE_TEST_SECRETS="${USE_TEST_SECRETS:-0}"
 
 PROJECTS=(postgresql s3-storage freshrss static-server go-blog pgadmin portainer wg-easy http-proxy reverse-proxy pg-backup)
 
@@ -97,6 +99,22 @@ EOF
 }
 
 generate_secrets() {
+  if [[ "$USE_TEST_SECRETS" == "1" ]]; then
+    POSTGRES_PASSWORD="test-postgres-admin"
+    FRESHRSS_DB_PASSWORD="test-freshrss-db"
+    GO_BLOG_DB_PASSWORD="test-goblog-db"
+    GO_BLOG_SESSION_SECRET="test-go-blog-session-secret-32chars"
+    MINIO_ROOT_PASSWORD="test-minio-password"
+    FRESHRSS_ADMIN_PASSWORD="test-admin"
+    FRESHRSS_API_PASSWORD="test-api"
+    PGADMIN_DEFAULT_PASSWORD="test-pgadmin"
+    HTTP_PROXY_PASSWORD="test-proxy-password"
+    WG_EASY_UI_PASSWORD="test-wg-easy-password"
+    # Bcrypt hash for test-wg-easy-password ($ escaped for Docker Compose .env).
+    WG_EASY_PASSWORD_HASH='$$2a$$12$$Ssl6xzD/0HbOPYvGiKczDuTngT3TSqNNn37le52ifQNtg8UmYFPsO'
+    return 0
+  fi
+
   POSTGRES_PASSWORD="$(random_password)"
   FRESHRSS_DB_PASSWORD="$(random_password)"
   GO_BLOG_DB_PASSWORD="$(random_password)"
@@ -149,13 +167,22 @@ create_env_from_example() {
       ;;
     s3-storage)
       set_env_var "$env_file" MINIO_ROOT_PASSWORD "$MINIO_ROOT_PASSWORD"
+      if [[ "$USE_TEST_SECRETS" == "1" ]]; then
+        set_env_var "$env_file" MINIO_ROOT_USER "test-minio-admin"
+      fi
       ;;
     pg-backup)
       set_env_var "$env_file" POSTGRES_PASSWORD "$POSTGRES_PASSWORD"
       set_env_var "$env_file" MINIO_ROOT_PASSWORD "$MINIO_ROOT_PASSWORD"
+      if [[ "$USE_TEST_SECRETS" == "1" ]]; then
+        set_env_var "$env_file" MINIO_ROOT_USER "test-minio-admin"
+      fi
       ;;
     http-proxy)
       set_env_var "$env_file" HTTP_PROXY_PASSWORD "$HTTP_PROXY_PASSWORD"
+      if [[ "$USE_TEST_SECRETS" == "1" ]]; then
+        set_env_var "$env_file" HTTP_PROXY_USER "test-proxy-user"
+      fi
       ;;
     wg-easy)
       set_env_var "$env_file" PASSWORD_HASH "$WG_EASY_PASSWORD_HASH"
