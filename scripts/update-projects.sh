@@ -7,6 +7,9 @@
 #   sudo REPO_DIR=~/infra-sandbox ./scripts/setup-vps.sh
 #   REPO_DIR=~/infra-sandbox ./scripts/update-projects.sh
 #
+# Flow: git pull → detect which projects changed → rsync to DEPLOY_ROOT →
+# restart only affected compose stacks (unless FORCE_RESTART or SKIP_* flags).
+#
 # Environment:
 #   REPO_DIR          Path to the infra-sandbox git checkout (default: repo root)
 #   DEPLOY_ROOT       Deployment directory (default: /opt/projects on VPS, else REPO_DIR)
@@ -15,7 +18,7 @@
 #   SKIP_GIT_PULL=1   Skip git fetch/pull (sync and restart only)
 #   SKIP_RESTART=1    Sync files only, do not restart containers
 #   FORCE_RESTART=1   Restart all projects even when nothing changed
-#   PULL_IMAGES=1     Pull upstream images before restarting (postgresql, freshrss, static-server, reverse-proxy)
+#   PULL_IMAGES=1     Pull upstream images before restarting (prebuilt image projects)
 #   DRY_RUN=1         Print actions without changing anything
 #   PROJECTS          Space-separated subset to update (default: all)
 #
@@ -28,12 +31,15 @@ GIT_REMOTE="${GIT_REMOTE:-origin}"
 GIT_BRANCH="${GIT_BRANCH:-}"
 
 ALL_PROJECTS=(postgresql s3-storage freshrss static-server go-blog pgadmin portainer http-proxy reverse-proxy pg-backup)
+# Projects that ship a Dockerfile and need "docker compose up --build".
 BUILD_PROJECTS=(go-blog pg-backup)
+# Projects that use published images and can benefit from "docker compose pull".
 IMAGE_PROJECTS=(postgresql s3-storage freshrss static-server pgadmin portainer http-proxy reverse-proxy)
 
 log() { printf '[update-projects] %s\n' "$*"; }
 die() { log "ERROR: $*"; exit 1; }
 
+# Respect DRY_RUN=1: log the command instead of executing it.
 run() {
   if [[ "${DRY_RUN:-}" == "1" ]]; then
     log "DRY_RUN: $*"
@@ -42,6 +48,7 @@ run() {
   fi
 }
 
+# Use PROJECTS env var if set, otherwise update every project in ALL_PROJECTS.
 parse_projects() {
   if [[ -n "${PROJECTS:-}" ]]; then
     # shellcheck disable=SC2206
@@ -58,6 +65,7 @@ require_tools() {
   docker compose version >/dev/null 2>&1 || die "Docker Compose plugin is required"
 }
 
+# On a VPS, deploy to /opt/projects; locally, use the repo directory itself.
 resolve_deploy_root() {
   if [[ -z "$DEPLOY_ROOT" ]]; then
     if [[ -d /opt/projects && "${REPO_DIR}" != /opt/projects* ]]; then
@@ -75,6 +83,7 @@ resolve_git_branch() {
   fi
 }
 
+# Fast-forward merge from remote; record whether HEAD moved (GIT_UPDATED).
 git_pull() {
   [[ -d "${REPO_DIR}/.git" ]] || die "Not a git repository: ${REPO_DIR}"
 
@@ -101,6 +110,7 @@ git_pull() {
   GIT_UPDATED=1
 }
 
+# Map changed files in the git diff to project names (populates CHANGED_PROJECTS).
 projects_changed_in_git() {
   local project file
   CHANGED_PROJECTS=()
@@ -123,6 +133,7 @@ projects_changed_in_git() {
   done
 }
 
+# Copy project files from repo to DEPLOY_ROOT; never overwrite .env or runtime data.
 sync_project() {
   local project="$1"
   local source="${REPO_DIR}/${project}/"
@@ -154,6 +165,7 @@ project_is_selected() {
   return 1
 }
 
+# Decide which projects need a compose restart (populates RESTART_PROJECTS).
 projects_to_restart() {
   RESTART_PROJECTS=()
 
@@ -167,6 +179,7 @@ projects_to_restart() {
     return
   fi
 
+  # Sync-only mode without git: restart everything that was synced.
   if [[ "${SKIP_GIT_PULL:-}" == "1" ]]; then
     RESTART_PROJECTS=("${SELECTED_PROJECTS[@]}")
   fi
@@ -190,6 +203,7 @@ needs_image_pull() {
   return 1
 }
 
+# Regenerate proxy config when http-proxy .env changes, then bring stack up.
 compose_up_project() {
   local project="$1"
   local dir="${DEPLOY_ROOT}/${project}"
@@ -218,6 +232,7 @@ remove_legacy_container() {
   fi
 }
 
+# Restart in dependency order: database and object storage before dependents.
 restart_projects() {
   local project
 
@@ -247,6 +262,7 @@ restart_projects() {
   fi
 }
 
+# When run via sudo, restore DEPLOY_ROOT ownership to the deploy user.
 fix_deploy_root_ownership() {
   local deploy_user="${SUDO_USER:-${DEPLOY_USER:-}}"
   if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then

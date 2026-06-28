@@ -1,11 +1,22 @@
 #!/usr/bin/env bash
 #
 # Initial setup for a DigitalOcean VPS (4 GB RAM).
-# Installs Docker, creates project directories, and prepares shared infrastructure.
 #
-# Usage (as root or with sudo):
+# Installs Docker, creates project directories under DEPLOY_ROOT, and prepares
+# shared infrastructure (network, .env files, proxy config). Run once on a new
+# server before starting the application stack.
+#
+#  Usage (as root or with sudo):
 #   curl -fsSL ... | bash
 #   ./scripts/setup-vps.sh
+#
+# Environment:
+#   REPO_DIR         Path to this git checkout (default: parent of scripts/)
+#   DEPLOY_ROOT      Where projects are deployed (default: /opt/projects)
+#   DOCKER_NETWORK   Shared Docker network name (default: projects-net)
+#   SWAP_SIZE_GB     Swap file size in GB (default: 2)
+#   SKIP_SWAP=1        Skip swap creation
+#   DEPLOY_USER      Non-root user to add to docker group (default: SUDO_USER)
 #
 set -euo pipefail
 
@@ -14,17 +25,20 @@ DEPLOY_ROOT="${DEPLOY_ROOT:-/opt/projects}"
 DOCKER_NETWORK="${DOCKER_NETWORK:-projects-net}"
 SWAP_SIZE_GB="${SWAP_SIZE_GB:-2}"
 
+# All infra projects copied from the repo into DEPLOY_ROOT.
 PROJECTS=(postgresql s3-storage freshrss static-server go-blog pgadmin portainer http-proxy reverse-proxy pg-backup)
 
 log() { printf '[setup-vps] %s\n' "$*"; }
 die() { log "ERROR: $*"; exit 1; }
 
+# Docker install and directory creation require root privileges.
 require_root() {
   if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
     die "Run this script as root (sudo ./scripts/setup-vps.sh)"
   fi
 }
 
+# Return OS id from /etc/os-release (e.g. ubuntu, debian).
 detect_os() {
   if [[ -f /etc/os-release ]]; then
     # shellcheck source=/dev/null
@@ -35,6 +49,7 @@ detect_os() {
   fi
 }
 
+# Add swap on small VPS to reduce OOM kills during Docker builds and peaks.
 setup_swap() {
   if [[ "${SKIP_SWAP:-}" == "1" ]]; then
     log "SKIP_SWAP=1, skipping swap setup"
@@ -47,6 +62,7 @@ setup_swap() {
   fi
 
   log "Creating ${SWAP_SIZE_GB}G swap file (recommended for 4 GB RAM VPS)"
+  # fallocate is faster; dd is the fallback on filesystems without sparse files.
   fallocate -l "${SWAP_SIZE_GB}G" /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=$((SWAP_SIZE_GB * 1024))
   chmod 600 /swapfile
   mkswap /swapfile
@@ -54,6 +70,7 @@ setup_swap() {
   grep -q '/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
 }
 
+# Install Docker CE from the official repository (Ubuntu/Debian only).
 install_docker() {
   if command -v docker >/dev/null 2>&1; then
     log "Docker already installed: $(docker --version)"
@@ -86,6 +103,7 @@ https://download.docker.com/linux/${os} ${codename} stable" \
   log "Docker installed: $(docker --version)"
 }
 
+# Let the deploy user run docker without sudo (requires re-login or newgrp docker).
 add_deploy_user_to_docker() {
   local deploy_user="${SUDO_USER:-${DEPLOY_USER:-}}"
   if [[ -z "$deploy_user" || "$deploy_user" == "root" ]]; then
@@ -101,6 +119,7 @@ add_deploy_user_to_docker() {
   fi
 }
 
+# Copy each project from the repo to DEPLOY_ROOT; preserve local .env and data.
 create_directories() {
   log "Creating deployment directories under ${DEPLOY_ROOT}"
   mkdir -p "${DEPLOY_ROOT}"
@@ -122,6 +141,7 @@ create_directories() {
   chmod 755 "${DEPLOY_ROOT}"
 }
 
+# Shared bridge network so all compose stacks can reach each other by name.
 create_docker_network() {
   if docker network inspect "${DOCKER_NETWORK}" >/dev/null 2>&1; then
     log "Docker network '${DOCKER_NETWORK}' already exists"
@@ -131,6 +151,7 @@ create_docker_network() {
   fi
 }
 
+# Bootstrap .env from .env.example where missing; generate proxy config from .env.
 setup_env_files() {
   for project in "${PROJECTS[@]}"; do
     local env_example="${DEPLOY_ROOT}/${project}/.env.example"
@@ -148,6 +169,7 @@ setup_env_files() {
   fi
 }
 
+# After running as root via sudo, hand DEPLOY_ROOT back to the deploy user.
 fix_deploy_root_ownership() {
   local deploy_user="${SUDO_USER:-${DEPLOY_USER:-}}"
   if [[ -z "$deploy_user" || "$deploy_user" == "root" ]]; then
@@ -158,6 +180,7 @@ fix_deploy_root_ownership() {
   chown -R "${deploy_user}:${deploy_user}" "${DEPLOY_ROOT}"
 }
 
+# Print manual next steps — services are not auto-started on purpose.
 print_next_steps() {
   cat <<EOF
 

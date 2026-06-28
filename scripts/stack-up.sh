@@ -1,12 +1,25 @@
 #!/usr/bin/env bash
 #
-# Start the full project stack for local/CI testing.
+# Start the full project stack for local development and CI testing.
+#
+# Writes known test credentials into .env files, creates the shared Docker
+# network, starts services in dependency order, waits for health checks, and
+# seeds test data (go-blog admin, Portainer admin).
+#
+# Environment (all optional — defaults suit local test runs):
+#   REPO_DIR / DEPLOY_ROOT   Root directory for compose projects
+#   DOCKER_NETWORK           Shared network name (default: projects-net)
+#   *_PORT                   Host ports for each service (see below)
+#   POSTGRES_WAIT_TIMEOUT    Seconds to wait for PostgreSQL health (default: 120)
+#   CONTAINER_WAIT_TIMEOUT   Seconds to wait for other containers (default: 120)
 #
 set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 STACK_ROOT="${DEPLOY_ROOT:-$REPO_DIR}"
 DOCKER_NETWORK="${DOCKER_NETWORK:-projects-net}"
+
+# Host ports exposed for tests (override to avoid conflicts on busy machines).
 FRESHRSS_PORT="${FRESHRSS_HTTP_PORT:-8081}"
 STATIC_SERVER_PORT="${STATIC_SERVER_HTTP_PORT:-8082}"
 GO_BLOG_PORT="${GO_BLOG_HTTP_PORT:-8083}"
@@ -15,6 +28,7 @@ PGADMIN_PORT="${PGADMIN_HTTP_PORT:-8085}"
 HTTP_PROXY_PORT="${HTTP_PROXY_PORT:-3128}"
 MINIO_API_PORT="${MINIO_API_PORT:-9002}"
 MINIO_CONSOLE_PORT="${MINIO_CONSOLE_PORT:-9003}"
+
 POSTGRES_WAIT_TIMEOUT="${POSTGRES_WAIT_TIMEOUT:-120}"
 CONTAINER_WAIT_TIMEOUT="${CONTAINER_WAIT_TIMEOUT:-120}"
 
@@ -26,9 +40,11 @@ require_docker() {
   docker compose version >/dev/null 2>&1 || die "Docker Compose plugin is required"
 }
 
+# Overwrite .env files with fixed test values so CI and local runs are reproducible.
 write_test_env_files() {
   log "Writing test .env files"
 
+  # PostgreSQL: superuser + credentials for init script (FreshRSS, go-blog DBs).
   cat > "${STACK_ROOT}/postgresql/.env" <<'EOF'
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=test-postgres-admin
@@ -62,6 +78,7 @@ EOF
 STATIC_SERVER_HTTP_PORT=${STATIC_SERVER_PORT}
 EOF
 
+  # Caddy virtual hosts for local testing (map via /etc/hosts or DNS).
   cat > "${STACK_ROOT}/reverse-proxy/.env" <<EOF
 FRESHRSS_HOST=freshrss.localhost
 FRESHRSS_ALT_HOST=freshrss.sigmalocal
@@ -93,6 +110,7 @@ PGADMIN_SERVER_USERNAME=postgres
 PGADMIN_SERVER_PASSWORD=test-postgres-admin
 EOF
 
+  # Pre-register the shared PostgreSQL server in pgAdmin on first start.
   cat > "${STACK_ROOT}/pgadmin/servers.json" <<'EOF'
 {
   "Servers": {
@@ -155,6 +173,7 @@ ensure_network() {
   fi
 }
 
+# Start a compose project; go-blog and pg-backup need a local image build.
 compose_up() {
   local project="$1"
   log "Starting ${project}"
@@ -165,6 +184,7 @@ compose_up() {
   fi
 }
 
+# Poll Docker health status until PostgreSQL reports healthy or timeout.
 wait_for_postgres() {
   log "Waiting for PostgreSQL to become healthy (timeout: ${POSTGRES_WAIT_TIMEOUT}s)"
   local deadline=$((SECONDS + POSTGRES_WAIT_TIMEOUT))
@@ -178,6 +198,7 @@ wait_for_postgres() {
   die "PostgreSQL did not become healthy in time"
 }
 
+# MinIO exposes a liveness endpoint on the API port once it accepts traffic.
 wait_for_s3_storage() {
   log "Waiting for S3 storage to become ready (timeout: ${CONTAINER_WAIT_TIMEOUT}s)"
   local deadline=$((SECONDS + CONTAINER_WAIT_TIMEOUT))
@@ -191,6 +212,7 @@ wait_for_s3_storage() {
   die "S3 storage did not become ready in time"
 }
 
+# Wait until container state is "running" (no health check required).
 wait_for_container() {
   local name="$1"
   local timeout="${2:-${CONTAINER_WAIT_TIMEOUT}}"
@@ -208,6 +230,7 @@ wait_for_container() {
   die "Container '${name}' did not start in time"
 }
 
+# Wait until container health check reports "healthy".
 wait_for_healthy() {
   local name="$1"
   local timeout="${2:-${CONTAINER_WAIT_TIMEOUT}}"
@@ -225,6 +248,7 @@ wait_for_healthy() {
   die "Container '${name}' did not become healthy in time"
 }
 
+# Portainer requires a one-time admin init via API on first boot.
 init_portainer_admin() {
   log "Ensuring Portainer admin user exists"
   local deadline=$((SECONDS + CONTAINER_WAIT_TIMEOUT))
@@ -236,6 +260,7 @@ init_portainer_admin() {
       -d '{"Username":"admin","Password":"test-portainer-admin-password"}' || true)"
     case "${status}" in
       200|204|409|422)
+        # 200/204 = created; 409/422 = already initialized.
         case "${status}" in
           200|204) log "Portainer admin user created" ;;
           *) log "Portainer admin user already exists" ;;
@@ -249,6 +274,7 @@ init_portainer_admin() {
   die "Failed to initialize Portainer admin user (HTTP ${status})"
 }
 
+# Confirm init script created FreshRSS and go-blog databases and users.
 verify_postgres_databases() {
   log "Verifying PostgreSQL databases and users"
   docker exec shared-postgres psql -U postgres -d postgres -tAc \
@@ -260,6 +286,7 @@ verify_postgres_databases() {
   log "PostgreSQL databases verified"
 }
 
+# Create default admin account inside the go-blog application.
 seed_go_blog_users() {
   log "Seeding go-blog test admin user"
   docker exec go-blog ./blog users-seed
@@ -271,6 +298,7 @@ main() {
   write_test_env_files
   ensure_network
 
+  # Start shared infrastructure first, then apps that depend on it.
   compose_up postgresql
   wait_for_postgres
   verify_postgres_databases

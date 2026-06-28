@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
 #
-# Stop the project stack and remove volumes (clean test state).
+# Stop the full project stack and remove Docker volumes (clean test state).
+#
+# Stops services in reverse dependency order (apps first, database last).
+# Uses "docker compose down -v" so the next stack-up starts from a fresh state.
+# Intended for local development and CI teardown after tests.
 #
 set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+# Where docker-compose.yml files live (repo root locally, /opt/projects on VPS).
 STACK_ROOT="${DEPLOY_ROOT:-$REPO_DIR}"
 
 log() { printf '[stack-down] %s\n' "$*"; }
 
+# Stop one project and delete its named volumes; ignore errors if already stopped.
 down_project() {
   local project="$1"
   if [[ -f "${STACK_ROOT}/${project}/docker-compose.yml" ]]; then
@@ -17,6 +23,7 @@ down_project() {
   fi
 }
 
+# Remove leftover containers from older stack layouts (safe no-op if absent).
 remove_legacy_container() {
   local name="$1"
   if docker container inspect "${name}" >/dev/null 2>&1; then
@@ -26,6 +33,7 @@ remove_legacy_container() {
 }
 
 main() {
+  # Reverse of stack-up order: dependents before shared infrastructure.
   down_project pg-backup
   down_project reverse-proxy
   down_project http-proxy
