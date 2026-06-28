@@ -252,7 +252,7 @@ restart_projects() {
     compose_up_project s3-storage
   fi
 
-  for project in static-server freshrss go-blog wg-easy http-proxy reverse-proxy; do
+  for project in static-server freshrss go-blog pgadmin portainer wg-easy http-proxy reverse-proxy; do
     project_is_selected "$project" || continue
     printf '%s\n' "${RESTART_PROJECTS[@]}" | grep -qx "$project" || continue
     compose_up_project "$project"
