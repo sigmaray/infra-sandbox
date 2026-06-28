@@ -108,7 +108,7 @@ The same services are also available through Caddy on port 80 via `freshrss.loca
 
 **Portainer** connects to the local Docker daemon via `/var/run/docker.sock` and shows all stack containers. On first start, `stack-up.sh` creates the admin user automatically (test credentials above).
 
-**pgAdmin** comes pre-configured with a connection to `shared-postgres` via `pgadmin/servers.json`. After login, expand **Servers → shared-postgres** to browse databases (`freshrss`, `goblog`, etc.). Update `servers.json` and matching passwords in `.env` when deploying to production.
+**pgAdmin** comes pre-configured with a connection to `shared-postgres` via `pgadmin/servers.json` (generated from `servers.json.example` by `stack-up.sh` or `generate-env-files.sh`). After login, expand **Servers → shared-postgres** to browse databases (`freshrss`, `goblog`, etc.). Keep `servers.json` in sync with `POSTGRES_PASSWORD` from `postgresql/.env`.
 
 ### 5. Run tests
 
@@ -232,7 +232,7 @@ Creates two databases on first start: `freshrss` and `goblog`. Each has a dedica
 - `PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED` — disable master password prompt for local use (default `False`)
 - `PGADMIN_SERVER_*` — credentials used in `servers.json` for the pre-configured PostgreSQL connection
 
-The file `pgadmin/servers.json` defines the `shared-postgres` server entry. Keep its `Password` in sync with `POSTGRES_PASSWORD` from `postgresql/.env`.
+The template `pgadmin/servers.json.example` defines the `shared-postgres` server entry. `generate-env-files.sh` writes `servers.json` with a random password; keep its `Password` in sync with `POSTGRES_PASSWORD` from `postgresql/.env`.
 
 ### Reverse proxy (`reverse-proxy/.env`)
 

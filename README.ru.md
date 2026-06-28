@@ -108,7 +108,7 @@ npm run stack:up
 
 **Portainer** подключается к локальному Docker через `/var/run/docker.sock` и показывает все контейнеры стека. При первом запуске `stack-up.sh` автоматически создаёт учётную запись администратора (тестовые данные выше).
 
-**pgAdmin** поставляется с преднастроенным подключением к `shared-postgres` через `pgadmin/servers.json`. После входа раскройте **Servers → shared-postgres**, чтобы просмотреть базы (`freshrss`, `goblog` и др.). Перед продакшеном обновите `servers.json` и пароли в `.env`.
+**pgAdmin** поставляется с преднастроенным подключением к `shared-postgres` через `pgadmin/servers.json` (создаётся из `servers.json.example` скриптами `stack-up.sh` или `generate-env-files.sh`). После входа раскройте **Servers → shared-postgres**, чтобы просмотреть базы (`freshrss`, `goblog` и др.). Держите `servers.json` в синхронизации с `POSTGRES_PASSWORD` из `postgresql/.env`.
 
 ### 5. Запустить тесты
 
@@ -232,7 +232,7 @@ REPO_DIR=~/infra-sandbox ./scripts/update-projects.sh
 - `PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED` — отключить запрос master password для локального использования (по умолчанию `False`)
 - `PGADMIN_SERVER_*` — учётные данные для преднастроенного подключения к PostgreSQL в `servers.json`
 
-Файл `pgadmin/servers.json` описывает сервер `shared-postgres`. Поле `Password` должно совпадать с `POSTGRES_PASSWORD` из `postgresql/.env`.
+Шаблон `pgadmin/servers.json.example` описывает сервер `shared-postgres`. Скрипт `generate-env-files.sh` создаёт `servers.json` со случайным паролем; поле `Password` должно совпадать с `POSTGRES_PASSWORD` из `postgresql/.env`.
 
 ### Reverse Proxy (`reverse-proxy/.env`)
 

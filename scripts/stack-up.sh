@@ -114,22 +114,8 @@ PGADMIN_SERVER_PASSWORD=test-postgres-admin
 EOF
 
   # Pre-register the shared PostgreSQL server in pgAdmin on first start.
-  cat > "${STACK_ROOT}/pgadmin/servers.json" <<'EOF'
-{
-  "Servers": {
-    "1": {
-      "Name": "shared-postgres",
-      "Group": "Servers",
-      "Host": "shared-postgres",
-      "Port": 5432,
-      "MaintenanceDB": "postgres",
-      "Username": "postgres",
-      "Password": "test-postgres-admin",
-      "SSLMode": "prefer"
-    }
-  }
-}
-EOF
+  sed 's/"Password": "change-me"/"Password": "test-postgres-admin"/' \
+    "${STACK_ROOT}/pgadmin/servers.json.example" > "${STACK_ROOT}/pgadmin/servers.json"
 
   cat > "${STACK_ROOT}/go-blog/.env" <<EOF
 GO_BLOG_HTTP_PORT=${GO_BLOG_PORT}

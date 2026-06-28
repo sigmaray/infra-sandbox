@@ -70,22 +70,10 @@ should_create_env() {
 
 write_pgadmin_servers_json() {
   local file="${DEPLOY_ROOT}/pgadmin/servers.json"
-  cat >"$file" <<EOF
-{
-  "Servers": {
-    "1": {
-      "Name": "shared-postgres",
-      "Group": "Servers",
-      "Host": "shared-postgres",
-      "Port": 5432,
-      "MaintenanceDB": "postgres",
-      "Username": "postgres",
-      "Password": "${POSTGRES_PASSWORD}",
-      "SSLMode": "prefer"
-    }
-  }
-}
-EOF
+  local example="${DEPLOY_ROOT}/pgadmin/servers.json.example"
+
+  [[ -f "$example" ]] || die "Missing ${example}"
+  sed 's/"Password": "change-me"/"Password": "'"${POSTGRES_PASSWORD}"'"/' "$example" >"$file"
 }
 
 write_credentials_file() {
