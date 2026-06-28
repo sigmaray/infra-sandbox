@@ -11,6 +11,7 @@ import (
 	"go-blog/handlers"
 	"go-blog/middleware"
 
+	"github.com/joho/godotenv"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
@@ -46,7 +47,15 @@ func envOrDefault(key, fallback string) string {
 	return fallback
 }
 
+func loadEnv() {
+	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
+		log.Printf("Warning: failed to load .env: %v", err)
+	}
+}
+
 func main() {
+	loadEnv()
+
 	dsn := databaseDSN()
 
 	gormDB, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
