@@ -1,0 +1,26 @@
+services:
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "${PORTAINER_HTTP_PORT:-8084}:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    command: ["-H", "unix:///var/run/docker.sock", "--no-setup-token"]
+    networks:
+      - projects-net
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+volumes:
+  portainer_data:
+
+networks:
+  projects-net:
+    external: true
+    name: projects-net

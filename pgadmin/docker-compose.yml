@@ -1,0 +1,36 @@
+services:
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+      PGADMIN_CONFIG_SERVER_MODE: ${PGADMIN_CONFIG_SERVER_MODE:-True}
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: ${PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED:-False}
+    ports:
+      - "${PGADMIN_HTTP_PORT:-8085}:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ./servers.json:/pgadmin4/servers.json:ro
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:80/login')\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks:
+      - projects-net
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+volumes:
+  pgadmin_data:
+
+networks:
+  projects-net:
+    external: true
+    name: projects-net

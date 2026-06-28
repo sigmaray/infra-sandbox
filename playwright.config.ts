@@ -3,6 +3,8 @@ import { defineConfig } from '@playwright/test';
 const freshrssPort = process.env.FRESHRSS_HTTP_PORT ?? '8081';
 const staticServerPort = process.env.STATIC_SERVER_HTTP_PORT ?? '8082';
 const goBlogPort = process.env.GO_BLOG_HTTP_PORT ?? '8083';
+const portainerPort = process.env.PORTAINER_HTTP_PORT ?? '8084';
+const pgadminPort = process.env.PGADMIN_HTTP_PORT ?? '8085';
 
 export default defineConfig({
   testDir: './tests',
@@ -27,5 +29,7 @@ export default defineConfig({
     freshrssPort,
     staticServerPort,
     goBlogPort,
+    portainerPort,
+    pgadminPort,
   },
 });

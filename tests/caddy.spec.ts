@@ -20,6 +20,20 @@ test.describe('Caddy Reverse Proxy', () => {
     expect(response.ok()).toBeTruthy();
   });
 
+  test('Portainer is accessible via subdomain on port 80', async ({ request }) => {
+    const response = await request.get('http://portainer.localhost/');
+    expect(response.ok()).toBeTruthy();
+    const body = await response.text();
+    expect(body).toMatch(/portainer/i);
+  });
+
+  test('pgAdmin is accessible via subdomain on port 80', async ({ request }) => {
+    const response = await request.get('http://pgadmin.localhost/login');
+    expect(response.ok()).toBeTruthy();
+    const body = await response.text();
+    expect(body).toMatch(/pgAdmin/i);
+  });
+
   test('FreshRSS is accessible via sigmalocal host', async ({ request }) => {
     const response = await request.get('http://127.0.0.1/', {
       headers: { Host: 'freshrss.sigmalocal' },
@@ -43,5 +57,23 @@ test.describe('Caddy Reverse Proxy', () => {
       headers: { Host: 'blog.sigmalocal' },
     });
     expect(response.ok()).toBeTruthy();
+  });
+
+  test('Portainer is accessible via sigmalocal host', async ({ request }) => {
+    const response = await request.get('http://127.0.0.1/', {
+      headers: { Host: 'portainer.sigmalocal' },
+    });
+    expect(response.ok()).toBeTruthy();
+    const body = await response.text();
+    expect(body).toMatch(/portainer/i);
+  });
+
+  test('pgAdmin is accessible via sigmalocal host', async ({ request }) => {
+    const response = await request.get('http://127.0.0.1/login', {
+      headers: { Host: 'pgadmin.sigmalocal' },
+    });
+    expect(response.ok()).toBeTruthy();
+    const body = await response.text();
+    expect(body).toMatch(/pgAdmin/i);
   });
 });

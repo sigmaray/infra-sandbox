@@ -1,0 +1,14 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "shared-postgres",
+      "Group": "Servers",
+      "Host": "shared-postgres",
+      "Port": 5432,
+      "MaintenanceDB": "postgres",
+      "Username": "postgres",
+      "Password": "test-postgres-admin",
+      "SSLMode": "prefer"
+    }
+  }
+}
