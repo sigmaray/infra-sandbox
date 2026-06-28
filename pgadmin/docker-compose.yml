@@ -1,6 +1,6 @@
 services:
   pgadmin:
-    image: dpage/pgadmin4:latest
+    image: dpage/pgadmin4:9.1.0
     container_name: pgadmin
     restart: unless-stopped
     env_file: .env

@@ -37,17 +37,32 @@ func main() {
 	}
 }
 
+func sessionSecret() []byte {
+	secret := os.Getenv("GO_BLOG_SESSION_SECRET")
+	if secret == "" {
+		log.Fatal("GO_BLOG_SESSION_SECRET is required")
+	}
+	if len(secret) < 32 {
+		log.Fatal("GO_BLOG_SESSION_SECRET must be at least 32 characters")
+	}
+	return []byte(secret)
+}
+
+func sessionSecure() bool {
+	return os.Getenv("GO_BLOG_SESSION_SECURE") == "1" || os.Getenv("GO_BLOG_SESSION_SECURE") == "true"
+}
+
 func runServer() {
 	gormDB := database.ConnectAndMigrate(embedMigrations)
 
 	r := gin.Default()
 
-	store := cookie.NewStore([]byte("secret_session_key"))
+	store := cookie.NewStore(sessionSecret())
 	store.Options(sessions.Options{
 		Path:     "/",
 		MaxAge:   86400 * 30,
 		HttpOnly: true,
-		Secure:   false,
+		Secure:   sessionSecure(),
 		SameSite: http.SameSiteLaxMode,
 	})
 	r.Use(sessions.Sessions("mysession", store))

@@ -1,6 +1,6 @@
 services:
   http-proxy:
-    image: 3proxy/3proxy:latest
+    image: 3proxy/3proxy:0.9.4
     container_name: http-proxy
     restart: unless-stopped
     ports:

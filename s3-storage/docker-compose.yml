@@ -1,6 +1,6 @@
 services:
   s3-storage:
-    image: minio/minio:latest
+    image: minio/minio:RELEASE.2025-06-13T11-33-47Z
     container_name: s3-storage
     restart: unless-stopped
     command: server /data --console-address ":9001"

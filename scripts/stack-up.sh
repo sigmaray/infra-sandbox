@@ -119,6 +119,8 @@ EOF
 
   cat > "${STACK_ROOT}/go-blog/.env" <<EOF
 GO_BLOG_HTTP_PORT=${GO_BLOG_PORT}
+GO_BLOG_SESSION_SECRET=test-go-blog-session-secret-32chars
+GO_BLOG_SESSION_SECURE=0
 
 GO_BLOG_DATABASE_HOST=shared-postgres
 GO_BLOG_DATABASE_PORT=5432

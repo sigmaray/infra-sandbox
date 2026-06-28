@@ -55,7 +55,7 @@ wg_easy_password_hash() {
   local hash
 
   hash="$(
-    docker run --rm ghcr.io/wg-easy/wg-easy wgpw "$password" 2>/dev/null \
+    docker run --rm ghcr.io/wg-easy/wg-easy:15 wgpw "$password" 2>/dev/null \
       | sed -n "s/^PASSWORD_HASH='\(.*\)'/\1/p"
   )"
   [[ -n "$hash" ]] || return 1
@@ -100,6 +100,7 @@ generate_secrets() {
   POSTGRES_PASSWORD="$(random_password)"
   FRESHRSS_DB_PASSWORD="$(random_password)"
   GO_BLOG_DB_PASSWORD="$(random_password)"
+  GO_BLOG_SESSION_SECRET="$(random_password)"
   MINIO_ROOT_PASSWORD="$(random_password)"
   FRESHRSS_ADMIN_PASSWORD="$(random_password)"
   FRESHRSS_API_PASSWORD="$(random_password)"
@@ -139,6 +140,7 @@ create_env_from_example() {
       ;;
     go-blog)
       set_env_var "$env_file" GO_BLOG_DATABASE_PASSWORD "$GO_BLOG_DB_PASSWORD"
+      set_env_var "$env_file" GO_BLOG_SESSION_SECRET "$GO_BLOG_SESSION_SECRET"
       ;;
     pgadmin)
       set_env_var "$env_file" PGADMIN_DEFAULT_PASSWORD "$PGADMIN_DEFAULT_PASSWORD"
