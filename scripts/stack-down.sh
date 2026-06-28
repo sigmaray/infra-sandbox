@@ -26,6 +26,7 @@ remove_legacy_container() {
 }
 
 main() {
+  down_project pg-backup
   down_project reverse-proxy
   down_project http-proxy
   down_project portainer
@@ -33,6 +34,7 @@ main() {
   down_project go-blog
   down_project freshrss
   down_project static-server
+  down_project s3-storage
   down_project postgresql
   remove_legacy_container drupal
   log "Stack stopped"

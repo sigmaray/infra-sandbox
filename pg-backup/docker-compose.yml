@@ -1,0 +1,26 @@
+services:
+  pg-backup:
+    build: .
+    container_name: pg-backup
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_HOST: ${POSTGRES_HOST:-shared-postgres}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://s3-storage:9000}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET:-pg-backups}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+    networks:
+      - projects-net
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+networks:
+  projects-net:
+    external: true
+    name: projects-net

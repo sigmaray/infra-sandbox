@@ -14,7 +14,7 @@ DEPLOY_ROOT="${DEPLOY_ROOT:-/opt/projects}"
 DOCKER_NETWORK="${DOCKER_NETWORK:-projects-net}"
 SWAP_SIZE_GB="${SWAP_SIZE_GB:-2}"
 
-PROJECTS=(postgresql freshrss static-server go-blog pgadmin portainer http-proxy reverse-proxy)
+PROJECTS=(postgresql s3-storage freshrss static-server go-blog pgadmin portainer http-proxy reverse-proxy pg-backup)
 
 log() { printf '[setup-vps] %s\n' "$*"; }
 die() { log "ERROR: $*"; exit 1; }
@@ -172,17 +172,23 @@ Start services in order:
   1. PostgreSQL (shared database):
      cd ${DEPLOY_ROOT}/postgresql && docker compose up -d
 
-  2. FreshRSS:
+  2. S3 storage (MinIO):
+     cd ${DEPLOY_ROOT}/s3-storage && docker compose up -d
+
+  3. FreshRSS:
      cd ${DEPLOY_ROOT}/freshrss && docker compose up -d
 
-  3. Static RSS server (for tests):
+  4. Static RSS server (for tests):
      cd ${DEPLOY_ROOT}/static-server && docker compose up -d
 
-  4. Go Blog:
+  5. Go Blog:
      cd ${DEPLOY_ROOT}/go-blog && docker compose up -d
 
-  5. Reverse Proxy (Caddy):
+  6. Reverse Proxy (Caddy):
      cd ${DEPLOY_ROOT}/reverse-proxy && docker compose up -d
+
+  7. PostgreSQL backups (daily cron to S3):
+     cd ${DEPLOY_ROOT}/pg-backup && docker compose up -d --build
 
 Edit .env files in each directory and set strong passwords before production use.
 Re-login (or run 'newgrp docker') if you were added to the docker group.

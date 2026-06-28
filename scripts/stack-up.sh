@@ -13,6 +13,8 @@ GO_BLOG_PORT="${GO_BLOG_HTTP_PORT:-8083}"
 PORTAINER_PORT="${PORTAINER_HTTP_PORT:-8084}"
 PGADMIN_PORT="${PGADMIN_HTTP_PORT:-8085}"
 HTTP_PROXY_PORT="${HTTP_PROXY_PORT:-3128}"
+MINIO_API_PORT="${MINIO_API_PORT:-9002}"
+MINIO_CONSOLE_PORT="${MINIO_CONSOLE_PORT:-9003}"
 POSTGRES_WAIT_TIMEOUT="${POSTGRES_WAIT_TIMEOUT:-120}"
 CONTAINER_WAIT_TIMEOUT="${CONTAINER_WAIT_TIMEOUT:-120}"
 
@@ -123,6 +125,25 @@ HTTP_PROXY_PORT=${HTTP_PROXY_PORT}
 HTTP_PROXY_USER=test-proxy-user
 HTTP_PROXY_PASSWORD=test-proxy-password
 EOF
+
+  cat > "${STACK_ROOT}/s3-storage/.env" <<EOF
+MINIO_ROOT_USER=test-minio-admin
+MINIO_ROOT_PASSWORD=test-minio-password
+MINIO_API_PORT=${MINIO_API_PORT}
+MINIO_CONSOLE_PORT=${MINIO_CONSOLE_PORT}
+MINIO_BUCKET=pg-backups
+EOF
+
+  cat > "${STACK_ROOT}/pg-backup/.env" <<EOF
+POSTGRES_HOST=shared-postgres
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=test-postgres-admin
+MINIO_ENDPOINT=http://s3-storage:9000
+MINIO_ROOT_USER=test-minio-admin
+MINIO_ROOT_PASSWORD=test-minio-password
+MINIO_BUCKET=pg-backups
+BACKUP_RETENTION_DAYS=30
+EOF
 }
 
 ensure_network() {
@@ -137,7 +158,7 @@ ensure_network() {
 compose_up() {
   local project="$1"
   log "Starting ${project}"
-  if [[ "${project}" == "go-blog" ]]; then
+  if [[ "${project}" == "go-blog" || "${project}" == "pg-backup" ]]; then
     (cd "${STACK_ROOT}/${project}" && docker compose up -d --build)
   else
     (cd "${STACK_ROOT}/${project}" && docker compose up -d)
@@ -155,6 +176,19 @@ wait_for_postgres() {
     sleep 1
   done
   die "PostgreSQL did not become healthy in time"
+}
+
+wait_for_s3_storage() {
+  log "Waiting for S3 storage to become ready (timeout: ${CONTAINER_WAIT_TIMEOUT}s)"
+  local deadline=$((SECONDS + CONTAINER_WAIT_TIMEOUT))
+  while (( SECONDS < deadline )); do
+    if curl -sf "http://127.0.0.1:${MINIO_API_PORT}/minio/health/live" >/dev/null 2>&1; then
+      log "S3 storage is ready"
+      return 0
+    fi
+    sleep 1
+  done
+  die "S3 storage did not become ready in time"
 }
 
 wait_for_container() {
@@ -241,6 +275,10 @@ main() {
   wait_for_postgres
   verify_postgres_databases
 
+  compose_up s3-storage
+  wait_for_container s3-storage
+  wait_for_s3_storage
+
   compose_up static-server
   wait_for_container static-server
 
@@ -264,6 +302,9 @@ main() {
 
   compose_up reverse-proxy
   wait_for_container reverse-proxy
+
+  compose_up pg-backup
+  wait_for_container pg-backup
 
   log "Stack is ready"
 }

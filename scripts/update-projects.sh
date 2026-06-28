@@ -27,9 +27,9 @@ DOCKER_NETWORK="${DOCKER_NETWORK:-projects-net}"
 GIT_REMOTE="${GIT_REMOTE:-origin}"
 GIT_BRANCH="${GIT_BRANCH:-}"
 
-ALL_PROJECTS=(postgresql freshrss static-server go-blog pgadmin portainer http-proxy reverse-proxy)
-BUILD_PROJECTS=(go-blog)
-IMAGE_PROJECTS=(postgresql freshrss static-server pgadmin portainer http-proxy reverse-proxy)
+ALL_PROJECTS=(postgresql s3-storage freshrss static-server go-blog pgadmin portainer http-proxy reverse-proxy pg-backup)
+BUILD_PROJECTS=(go-blog pg-backup)
+IMAGE_PROJECTS=(postgresql s3-storage freshrss static-server pgadmin portainer http-proxy reverse-proxy)
 
 log() { printf '[update-projects] %s\n' "$*"; }
 die() { log "ERROR: $*"; exit 1; }
@@ -232,11 +232,19 @@ restart_projects() {
     compose_up_project postgresql
   fi
 
+  if project_is_selected s3-storage && printf '%s\n' "${RESTART_PROJECTS[@]}" | grep -qx s3-storage; then
+    compose_up_project s3-storage
+  fi
+
   for project in static-server freshrss go-blog http-proxy reverse-proxy; do
     project_is_selected "$project" || continue
     printf '%s\n' "${RESTART_PROJECTS[@]}" | grep -qx "$project" || continue
     compose_up_project "$project"
   done
+
+  if project_is_selected pg-backup && printf '%s\n' "${RESTART_PROJECTS[@]}" | grep -qx pg-backup; then
+    compose_up_project pg-backup
+  fi
 }
 
 fix_deploy_root_ownership() {
