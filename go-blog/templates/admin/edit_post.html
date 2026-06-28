@@ -1,0 +1,31 @@
+{{ define "admin/edit_post.html" }}
+{{ template "admin/header.html" . }}
+
+<h2>Edit Post</h2>
+
+{{ if .Error }}
+    <div class="error">{{ .Error }}</div>
+{{ end }}
+
+<form action="/admin/posts/{{ .Post.ID }}" method="POST">
+    <div class="form-group">
+        <label for="title">Title (Optional)</label>
+        <input type="text" id="title" name="title" value="{{ if .Title }}{{ .Title }}{{ else }}{{ .Post.Title }}{{ end }}">
+    </div>
+
+    <div class="form-group">
+        <label for="content">Content (Required)</label>
+        <textarea id="content" name="content" required>{{ if .Content }}{{ .Content }}{{ else }}{{ .Post.Content }}{{ end }}</textarea>
+    </div>
+
+    <div class="form-group">
+        <label for="tags">Tags (Comma separated, Optional)</label>
+        <input type="text" id="tags" name="tags" value="{{ .Tags }}" placeholder="e.g. go, web, tutorial">
+    </div>
+
+    <button type="submit" class="btn">Update Post</button>
+    <a href="/admin/" style="margin-left: 10px;">Cancel</a>
+</form>
+
+{{ template "admin/footer.html" . }}
+{{ end }}

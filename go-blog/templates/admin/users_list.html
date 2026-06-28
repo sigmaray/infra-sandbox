@@ -1,39 +1,37 @@
-{{ define "admin/dashboard.html" }}
+{{ define "admin/users_list.html" }}
 {{ template "admin/header.html" . }}
 
-<h2>Admin Dashboard</h2>
+<h2>Users</h2>
 
 <div style="margin-bottom: 20px;">
-    <a href="/admin/posts/new" class="btn">Create New Post</a>
-    <a href="/admin/users" class="btn" style="margin-left: 10px;">Manage Users</a>
+    <a href="/admin/users/new" class="btn">Create New User</a>
 </div>
 
-<h3>Recent Posts</h3>
 <table style="width: 100%; border-collapse: collapse;">
     <thead>
         <tr style="background: #f5f5f5;">
             <th style="padding: 10px; text-align: left; border-bottom: 1px solid #ddd;">ID</th>
-            <th style="padding: 10px; text-align: left; border-bottom: 1px solid #ddd;">Title</th>
-            <th style="padding: 10px; text-align: left; border-bottom: 1px solid #ddd;">Date</th>
+            <th style="padding: 10px; text-align: left; border-bottom: 1px solid #ddd;">Username</th>
+            <th style="padding: 10px; text-align: left; border-bottom: 1px solid #ddd;">Created</th>
             <th style="padding: 10px; text-align: left; border-bottom: 1px solid #ddd;">Actions</th>
         </tr>
     </thead>
     <tbody>
-        {{ range .Posts }}
+        {{ range .Users }}
         <tr>
             <td style="padding: 10px; border-bottom: 1px solid #ddd;">{{ .ID }}</td>
-            <td style="padding: 10px; border-bottom: 1px solid #ddd;">{{ if .Title }}{{ .Title }}{{ else }}<em>Untitled</em>{{ end }}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #ddd;">{{ .Username }}</td>
             <td style="padding: 10px; border-bottom: 1px solid #ddd;">{{ .CreatedAt.Format "2006-01-02 15:04" }}</td>
             <td style="padding: 10px; border-bottom: 1px solid #ddd;">
-                <a href="/admin/posts/{{ .ID }}/edit">Edit</a>
-                <form action="/admin/posts/{{ .ID }}/delete" method="POST" style="display:inline; margin-left: 10px;" onsubmit="return confirm('Delete this post?');">
+                <a href="/admin/users/{{ .ID }}/edit">Edit</a>
+                <form action="/admin/users/{{ .ID }}/delete" method="POST" style="display:inline; margin-left: 10px;" onsubmit="return confirm('Delete this user?');">
                     <button type="submit" class="btn btn-danger" style="padding: 3px 8px;">Delete</button>
                 </form>
             </td>
         </tr>
         {{ else }}
         <tr>
-            <td colspan="4" style="padding: 10px; text-align: center;">No posts found.</td>
+            <td colspan="4" style="padding: 10px; text-align: center;">No users found.</td>
         </tr>
         {{ end }}
     </tbody>

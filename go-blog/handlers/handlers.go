@@ -3,7 +3,6 @@ package handlers
 import (
 	"net/http"
 	"strconv"
-	"strings"
 
 	"go-blog/models"
 
@@ -77,18 +76,25 @@ func (h *Handler) Login(c *gin.Context) {
 	username := c.PostForm("username")
 	password := c.PostForm("password")
 
-	// Hardcoded admin credentials for simplicity
-	if username == "admin" && password == "admin" {
-		session := sessions.Default(c)
-		session.Set("user", "admin")
-		session.Save()
-		c.Redirect(http.StatusFound, "/admin/")
+	user, err := models.FindUserByUsername(h.DB, username)
+	if err != nil {
+		c.HTML(http.StatusOK, "admin/login.html", gin.H{
+			"Error": "Invalid username or password",
+		})
 		return
 	}
 
-	c.HTML(http.StatusOK, "admin/login.html", gin.H{
-		"Error": "Invalid username or password",
-	})
+	if user == nil || !models.CheckPassword(user.PasswordHash, password) {
+		c.HTML(http.StatusOK, "admin/login.html", gin.H{
+			"Error": "Invalid username or password",
+		})
+		return
+	}
+
+	session := sessions.Default(c)
+	session.Set("user", user.Username)
+	session.Save()
+	c.Redirect(http.StatusFound, "/admin/")
 }
 
 func (h *Handler) Logout(c *gin.Context) {
@@ -146,22 +152,17 @@ func (h *Handler) CreatePost(c *gin.Context) {
 		Content: input.Content,
 	}
 
-	// Process tags
-	if input.Tags != "" {
-		tagNames := strings.Split(input.Tags, ",")
-		for _, name := range tagNames {
-			name = strings.TrimSpace(name)
-			if name == "" {
-				continue
-			}
-
-			var tag models.Tag
-			// Find or create tag
-			if err := h.DB.Where("name = ?", name).FirstOrCreate(&tag, models.Tag{Name: name}).Error; err == nil {
-				post.Tags = append(post.Tags, tag)
-			}
-		}
+	tags, err := h.buildTags(input.Tags)
+	if err != nil {
+		c.HTML(http.StatusInternalServerError, "admin/create_post.html", gin.H{
+			"Error":   "Failed to process tags",
+			"Title":   input.Title,
+			"Content": input.Content,
+			"Tags":    input.Tags,
+		})
+		return
 	}
+	post.Tags = tags
 
 	if err := h.DB.Create(&post).Error; err != nil {
 		c.HTML(http.StatusInternalServerError, "admin/create_post.html", gin.H{
