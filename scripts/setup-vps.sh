@@ -202,6 +202,7 @@ create_directories() {
       rsync -a --delete \
         --exclude '.env' \
         --exclude '3proxy.cfg' \
+        --exclude 'servers.json' \
         --exclude 'data/' \
         "${REPO_DIR}/${project}/" "${target}/"
     fi
@@ -220,17 +221,9 @@ create_docker_network() {
   fi
 }
 
-# Bootstrap .env from .env.example where missing; generate proxy config from .env.
+# Bootstrap .env from .env.example with random passwords; generate proxy config from .env.
 setup_env_files() {
-  for project in "${PROJECTS[@]}"; do
-    local env_example="${DEPLOY_ROOT}/${project}/.env.example"
-    local env_file="${DEPLOY_ROOT}/${project}/.env"
-    if [[ -f "$env_example" && ! -f "$env_file" ]]; then
-      cp "$env_example" "$env_file"
-      chmod 600 "$env_file"
-      log "Created ${env_file} from .env.example — edit passwords before starting services"
-    fi
-  done
+  DEPLOY_ROOT="${DEPLOY_ROOT}" bash "${REPO_DIR}/scripts/generate-env-files.sh"
 
   if [[ -f "${DEPLOY_ROOT}/http-proxy/.env" ]]; then
     bash "${DEPLOY_ROOT}/http-proxy/generate-3proxy-cfg.sh"
@@ -285,7 +278,7 @@ Start services in order:
   8. PostgreSQL backups (daily cron to S3):
      cd ${DEPLOY_ROOT}/pg-backup && docker compose up -d --build
 
-Edit .env files in each directory and set strong passwords before production use.
+Random passwords were generated in .env files (see ${DEPLOY_ROOT}/.initial-credentials).
 Re-login (or run 'newgrp docker') if you were added to the docker group.
 
 To update configs from this repository, re-run:

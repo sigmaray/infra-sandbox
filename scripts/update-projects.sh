@@ -146,6 +146,7 @@ sync_project() {
   run rsync -a --delete \
     --exclude '.env' \
     --exclude '3proxy.cfg' \
+    --exclude 'servers.json' \
     --exclude 'data/' \
     "${source}" "${target}/"
 }
