@@ -5,6 +5,8 @@ const pgadminPort = process.env.PGADMIN_HTTP_PORT ?? '8085';
 const pgadminUrl = `http://127.0.0.1:${pgadminPort}`;
 const pgadminEmail = 'admin@example.com';
 const pgadminPassword = 'test-pgadmin';
+const postgresPassword = 'test-postgres-admin';
+const stackDatabases = ['freshrss', 'goblog'] as const;
 
 async function loginToPgAdmin(page: Page) {
   await page.goto(`${pgadminUrl}/login`, { waitUntil: 'networkidle' });
@@ -18,7 +20,7 @@ async function loginToPgAdmin(page: Page) {
 }
 
 function objectExplorer(page: Page) {
-  return page.getByRole('tabpanel', { name: 'Object Explorer' });
+  return page.getByLabel('Object Explorer');
 }
 
 async function expandObjectExplorerNode(page: Page, label: string) {
@@ -26,6 +28,27 @@ async function expandObjectExplorerNode(page: Page, label: string) {
   const node = explorer.getByText(label, { exact: true });
   await expect(node).toBeVisible({ timeout: 30_000 });
   await node.dblclick();
+}
+
+async function connectToSharedPostgres(page: Page) {
+  const explorer = objectExplorer(page);
+
+  await expandObjectExplorerNode(page, 'Servers');
+
+  if (await explorer.getByText('Databases', { exact: true }).isVisible().catch(() => false)) {
+    return;
+  }
+
+  const connectDialog = page.locator('.MuiDialog-root').filter({ hasText: /connect to server/i });
+  if (!(await connectDialog.isVisible().catch(() => false))) {
+    await explorer.getByText('shared-postgres', { exact: true }).dblclick({ force: true });
+    await expect(connectDialog).toBeVisible({ timeout: 15_000 });
+  }
+
+  await connectDialog.locator('input[type="password"]').fill(postgresPassword);
+  await page.locator('button').filter({ hasText: /^OK$/ }).click();
+
+  await expect(explorer.getByText('Databases', { exact: true })).toBeVisible({ timeout: 60_000 });
 }
 
 test.describe('pgAdmin', () => {
@@ -45,6 +68,17 @@ test.describe('pgAdmin', () => {
     await expect(objectExplorer(page).getByText('shared-postgres', { exact: true })).toBeVisible({
       timeout: 30_000,
     });
+  });
+
+  test('shows stack PostgreSQL databases after connecting to shared-postgres', async ({ page }) => {
+    await loginToPgAdmin(page);
+    await connectToSharedPostgres(page);
+    await expandObjectExplorerNode(page, 'Databases');
+
+    const explorer = objectExplorer(page);
+    for (const databaseName of stackDatabases) {
+      await expect(explorer.getByText(databaseName, { exact: true })).toBeVisible({ timeout: 30_000 });
+    }
   });
 
   test('can reach shared-postgres from the pgAdmin container', () => {
