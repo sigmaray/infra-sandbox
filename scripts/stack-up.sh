@@ -12,6 +12,7 @@ STATIC_SERVER_PORT="${STATIC_SERVER_HTTP_PORT:-8082}"
 GO_BLOG_PORT="${GO_BLOG_HTTP_PORT:-8083}"
 PORTAINER_PORT="${PORTAINER_HTTP_PORT:-8084}"
 PGADMIN_PORT="${PGADMIN_HTTP_PORT:-8085}"
+HTTP_PROXY_PORT="${HTTP_PROXY_PORT:-3128}"
 POSTGRES_WAIT_TIMEOUT="${POSTGRES_WAIT_TIMEOUT:-120}"
 CONTAINER_WAIT_TIMEOUT="${CONTAINER_WAIT_TIMEOUT:-120}"
 
@@ -115,6 +116,12 @@ GO_BLOG_DATABASE_PORT=5432
 GO_BLOG_DATABASE_NAME=goblog
 GO_BLOG_DATABASE_USER=goblog
 GO_BLOG_DATABASE_PASSWORD=test-goblog-db
+EOF
+
+  cat > "${STACK_ROOT}/http-proxy/.env" <<EOF
+HTTP_PROXY_PORT=${HTTP_PROXY_PORT}
+HTTP_PROXY_USER=test-proxy-user
+HTTP_PROXY_PASSWORD=test-proxy-password
 EOF
 }
 
@@ -250,6 +257,10 @@ main() {
   compose_up portainer
   wait_for_container portainer
   init_portainer_admin
+
+  bash "${STACK_ROOT}/http-proxy/generate-3proxy-cfg.sh"
+  compose_up http-proxy
+  wait_for_container http-proxy
 
   compose_up reverse-proxy
   wait_for_container reverse-proxy

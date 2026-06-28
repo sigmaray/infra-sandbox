@@ -14,7 +14,7 @@ DEPLOY_ROOT="${DEPLOY_ROOT:-/opt/projects}"
 DOCKER_NETWORK="${DOCKER_NETWORK:-projects-net}"
 SWAP_SIZE_GB="${SWAP_SIZE_GB:-2}"
 
-PROJECTS=(postgresql freshrss static-server go-blog pgadmin portainer reverse-proxy)
+PROJECTS=(postgresql freshrss static-server go-blog pgadmin portainer http-proxy reverse-proxy)
 
 log() { printf '[setup-vps] %s\n' "$*"; }
 die() { log "ERROR: $*"; exit 1; }
@@ -113,6 +113,7 @@ create_directories() {
       log "Syncing ${project} from repository"
       rsync -a --delete \
         --exclude '.env' \
+        --exclude '3proxy.cfg' \
         --exclude 'data/' \
         "${REPO_DIR}/${project}/" "${target}/"
     fi
@@ -140,6 +141,11 @@ setup_env_files() {
       log "Created ${env_file} from .env.example — edit passwords before starting services"
     fi
   done
+
+  if [[ -f "${DEPLOY_ROOT}/http-proxy/.env" ]]; then
+    bash "${DEPLOY_ROOT}/http-proxy/generate-3proxy-cfg.sh"
+    log "Generated ${DEPLOY_ROOT}/http-proxy/3proxy.cfg from .env"
+  fi
 }
 
 fix_deploy_root_ownership() {

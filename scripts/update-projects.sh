@@ -27,9 +27,9 @@ DOCKER_NETWORK="${DOCKER_NETWORK:-projects-net}"
 GIT_REMOTE="${GIT_REMOTE:-origin}"
 GIT_BRANCH="${GIT_BRANCH:-}"
 
-ALL_PROJECTS=(postgresql freshrss static-server go-blog pgadmin portainer reverse-proxy)
+ALL_PROJECTS=(postgresql freshrss static-server go-blog pgadmin portainer http-proxy reverse-proxy)
 BUILD_PROJECTS=(go-blog)
-IMAGE_PROJECTS=(postgresql freshrss static-server pgadmin portainer reverse-proxy)
+IMAGE_PROJECTS=(postgresql freshrss static-server pgadmin portainer http-proxy reverse-proxy)
 
 log() { printf '[update-projects] %s\n' "$*"; }
 die() { log "ERROR: $*"; exit 1; }
@@ -134,6 +134,7 @@ sync_project() {
   mkdir -p "${target}"
   run rsync -a --delete \
     --exclude '.env' \
+    --exclude '3proxy.cfg' \
     --exclude 'data/' \
     "${source}" "${target}/"
 }
@@ -195,6 +196,10 @@ compose_up_project() {
 
   [[ -f "${dir}/docker-compose.yml" ]] || die "Missing docker-compose.yml: ${dir}"
 
+  if [[ "${project}" == "http-proxy" && -f "${dir}/.env" ]]; then
+    run bash "${dir}/generate-3proxy-cfg.sh"
+  fi
+
   log "Restarting ${project}"
   if needs_build "$project"; then
     run bash -c "cd '${dir}' && docker compose up -d --build"
@@ -227,7 +232,7 @@ restart_projects() {
     compose_up_project postgresql
   fi
 
-  for project in static-server freshrss go-blog reverse-proxy; do
+  for project in static-server freshrss go-blog http-proxy reverse-proxy; do
     project_is_selected "$project" || continue
     printf '%s\n' "${RESTART_PROJECTS[@]}" | grep -qx "$project" || continue
     compose_up_project "$project"
