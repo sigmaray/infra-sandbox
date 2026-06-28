@@ -1,6 +1,6 @@
 # infra-sandbox
 
-A Docker-based infrastructure sandbox for running a small multi-service stack on a VPS or locally. The stack includes a shared PostgreSQL database, FreshRSS feed reader, a static RSS server for tests, a Go blog application, and a Caddy reverse proxy.
+A Docker-based infrastructure sandbox for running a small multi-service stack on a VPS or locally. The stack includes a shared PostgreSQL database, FreshRSS feed reader, a static RSS server for tests, a Go blog application, Portainer (Docker management UI), pgAdmin (PostgreSQL admin UI), and a Caddy reverse proxy.
 
 **[Русская версия →](README.ru.md)**
 
@@ -23,14 +23,18 @@ All services share one PostgreSQL instance and communicate over a single Docker 
 │  │ shared-      │   │ FreshRSS │   │ go-blog  │                  │
 │  │ postgres     │◄──│ :8081    │   │ :8083    │                  │
 │  │              │   │          │   │          │                  │
-│  │ freshrss DB  │   └────┬─────┘   └────┬─────┘                  │
-│  │ goblog DB    │        │              │                        │
-│  └──────────────┘        │ subscribes   │                        │
-│                          ▼              ▼                        │
-│                    ┌──────────────┐  ┌──────────────┐            │
-│                    │ static-server│  │ Caddy        │            │
-│                    │ (nginx)      │  │ :80          │            │
-│                    │ :8082        │  └──────────────┘            │
+│  │ freshrss DB  │   └────┬─────┘   └────┬─────┘   ┌──────────┐   │
+│  │ goblog DB    │        │              │         │ pgAdmin  │   │
+│  └──────▲───────┘        │ subscribes   │         │ :8085    │   │
+│         │                ▼              ▼         └──────────┘   │
+│         │          ┌──────────────┐  ┌──────────────┐            │
+│         │          │ static-server│  │ Caddy        │            │
+│         │          │ (nginx)      │  │ :80          │            │
+│         │          │ :8082        │  └──────────────┘            │
+│         │          └──────────────┘                               │
+│         │          ┌──────────────┐                               │
+│         └──────────│ Portainer    │  (Docker socket)              │
+│                    │ :8084        │                               │
 │                    └──────────────┘                               │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -45,6 +49,8 @@ All services share one PostgreSQL instance and communicate over a single Docker 
 | FreshRSS       | `freshrss`       | 8081 | Self-hosted RSS reader                    |
 | Static server  | `static-server`  | 8082 | Nginx serving test RSS feeds              |
 | Go Blog        | `go-blog`        | 8083 | Simple blog app written in Go (Gin + GORM) |
+| Portainer      | `portainer`      | 8084 | Web UI for managing Docker containers     |
+| pgAdmin        | `pgadmin`        | 8085 | Web UI for PostgreSQL administration        |
 | Reverse Proxy  | `reverse-proxy`  | 80   | Caddy routing `*.localhost` subdomains    |
 
 Ports can be changed via environment variables (see [Configuration](#configuration)).
@@ -92,11 +98,17 @@ This script:
 
 | Service   | URL                          | Default credentials    |
 |-----------|------------------------------|------------------------|
-| FreshRSS  | http://127.0.0.1:8081        | `admin` / `test-admin` |
-| Go Blog   | http://127.0.0.1:8083        | `admin` / `admin`      |
-| RSS feeds | http://127.0.0.1:8082/feeds/ | — (no auth)            |
+| FreshRSS  | http://127.0.0.1:8081        | `admin` / `test-admin`                    |
+| Go Blog   | http://127.0.0.1:8083        | `admin` / `admin`                         |
+| RSS feeds | http://127.0.0.1:8082/feeds/ | — (no auth)                               |
+| Portainer | http://127.0.0.1:8084        | `admin` / `test-portainer-admin-password` |
+| pgAdmin   | http://127.0.0.1:8085        | `admin@example.com` / `test-pgadmin`      |
 
-The same services are also available through Caddy on port 80 via `freshrss.localhost`, `feeds.localhost`, and `blog.localhost` (or the alternate `*.sigmalocal` hostnames — see `reverse-proxy/.env.example`).
+The same services are also available through Caddy on port 80 via `freshrss.localhost`, `feeds.localhost`, `blog.localhost`, `portainer.localhost`, and `pgadmin.localhost` (or the alternate `*.sigmalocal` hostnames — see `reverse-proxy/.env.example`).
+
+**Portainer** connects to the local Docker daemon via `/var/run/docker.sock` and shows all stack containers. On first start, `stack-up.sh` creates the admin user automatically (test credentials above).
+
+**pgAdmin** comes pre-configured with a connection to `shared-postgres` via `pgadmin/servers.json`. After login, expand **Servers → shared-postgres** to browse databases (`freshrss`, `goblog`, etc.). Update `servers.json` and matching passwords in `.env` when deploying to production.
 
 ### 5. Run tests
 
@@ -155,6 +167,8 @@ cd /opt/projects/postgresql && docker compose up -d
 cd /opt/projects/freshrss   && docker compose up -d
 cd /opt/projects/static-server && docker compose up -d
 cd /opt/projects/go-blog    && docker compose up -d
+cd /opt/projects/pgadmin    && docker compose up -d
+cd /opt/projects/portainer  && docker compose up -d
 cd /opt/projects/reverse-proxy && docker compose up -d
 ```
 
@@ -204,10 +218,28 @@ Creates two databases on first start: `freshrss` and `goblog`. Each has a dedica
 - RSS feed files live in `static-server/content/feeds/`
 - `content/manifest.json` describes feeds for automated tests
 
+### Portainer (`portainer/.env`)
+
+- `PORTAINER_HTTP_PORT` — host port (default `8084`)
+- Mounts `/var/run/docker.sock` to manage containers on the host
+- On first visit, create an admin account (or let `stack-up.sh` do it in test/CI environments)
+
+### pgAdmin (`pgadmin/.env`)
+
+- `PGADMIN_HTTP_PORT` — host port (default `8085`)
+- `PGADMIN_DEFAULT_EMAIL`, `PGADMIN_DEFAULT_PASSWORD` — login credentials
+- `PGADMIN_CONFIG_SERVER_MODE` — enable multi-user mode (default `True`)
+- `PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED` — disable master password prompt for local use (default `False`)
+- `PGADMIN_SERVER_*` — credentials used in `servers.json` for the pre-configured PostgreSQL connection
+
+The file `pgadmin/servers.json` defines the `shared-postgres` server entry. Keep its `Password` in sync with `POSTGRES_PASSWORD` from `postgresql/.env`.
+
 ### Reverse proxy (`reverse-proxy/.env`)
 
 - `FRESHRSS_HOST`, `FEEDS_HOST`, `BLOG_HOST` — primary hostnames served by Caddy
 - `FRESHRSS_ALT_HOST`, `FEEDS_ALT_HOST`, `BLOG_ALT_HOST` — alternate hostnames (default `*.sigmalocal`; resolve them via `/etc/hosts` or local DNS)
+- `PORTAINER_HOST`, `PGADMIN_HOST` — hostnames for Portainer and pgAdmin
+- `PORTAINER_ALT_HOST`, `PGADMIN_ALT_HOST` — alternate hostnames (default `portainer.sigmalocal`, `pgadmin.sigmalocal`)
 - `CADDY_HTTP_PORT` — host port for the proxy (default `80`)
 
 ### Setup script variables
@@ -235,6 +267,8 @@ infra-sandbox/
 ├── freshrss/               # FreshRSS feed reader
 ├── static-server/          # Nginx with test RSS feeds
 ├── go-blog/                # Go blog (Gin, GORM, Goose migrations)
+├── pgadmin/                # pgAdmin 4 with pre-configured PostgreSQL server
+├── portainer/              # Portainer CE for Docker management
 ├── reverse-proxy/          # Caddy reverse proxy for localhost subdomains
 ├── tests/                  # Playwright end-to-end tests
 ├── .github/workflows/ci.yml
@@ -253,7 +287,9 @@ Tests use [Playwright](https://playwright.dev/) and run against the live Docker 
 | `infra.spec.ts`      | PostgreSQL health, direct service smoke checks, RSS feeds |
 | `freshrss.spec.ts`   | FreshRSS login, RSS feed import from static server       |
 | `go-blog.spec.ts`    | Go blog login, posts, pagination, tag filtering         |
-| `caddy.spec.ts`      | Reverse proxy routes for FreshRSS, feeds, and go-blog   |
+| `caddy.spec.ts`      | Reverse proxy routes for all services                   |
+| `portainer.spec.ts`  | Portainer login, API auth, container list in UI          |
+| `pgadmin.spec.ts`    | pgAdmin login, pre-configured server, DB connectivity    |
 
 In CI, the stack is started before tests (`SKIP_STACK_SETUP=1` tells Playwright not to start it again). Locally, `global-setup.ts` runs `stack-up.sh` automatically unless you set `SKIP_STACK_SETUP=1`.
 
@@ -304,7 +340,8 @@ Re-login after `setup-vps.sh` adds you to the `docker` group, or run `newgrp doc
 Override ports when starting:
 
 ```bash
-FRESHRSS_HTTP_PORT=9081 STATIC_SERVER_HTTP_PORT=9082 GO_BLOG_HTTP_PORT=9083 npm run stack:up
+FRESHRSS_HTTP_PORT=9081 STATIC_SERVER_HTTP_PORT=9082 GO_BLOG_HTTP_PORT=9083 \
+PORTAINER_HTTP_PORT=9084 PGADMIN_HTTP_PORT=9085 npm run stack:up
 ```
 
 ---
