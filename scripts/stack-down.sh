@@ -27,6 +27,8 @@ remove_legacy_container() {
 
 main() {
   down_project reverse-proxy
+  down_project portainer
+  down_project pgadmin
   down_project go-blog
   down_project freshrss
   down_project static-server

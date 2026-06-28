@@ -27,9 +27,9 @@ DOCKER_NETWORK="${DOCKER_NETWORK:-projects-net}"
 GIT_REMOTE="${GIT_REMOTE:-origin}"
 GIT_BRANCH="${GIT_BRANCH:-}"
 
-ALL_PROJECTS=(postgresql freshrss static-server go-blog reverse-proxy)
+ALL_PROJECTS=(postgresql freshrss static-server go-blog pgadmin portainer reverse-proxy)
 BUILD_PROJECTS=(go-blog)
-IMAGE_PROJECTS=(postgresql freshrss static-server reverse-proxy)
+IMAGE_PROJECTS=(postgresql freshrss static-server pgadmin portainer reverse-proxy)
 
 log() { printf '[update-projects] %s\n' "$*"; }
 die() { log "ERROR: $*"; exit 1; }

@@ -10,6 +10,8 @@ DOCKER_NETWORK="${DOCKER_NETWORK:-projects-net}"
 FRESHRSS_PORT="${FRESHRSS_HTTP_PORT:-8081}"
 STATIC_SERVER_PORT="${STATIC_SERVER_HTTP_PORT:-8082}"
 GO_BLOG_PORT="${GO_BLOG_HTTP_PORT:-8083}"
+PORTAINER_PORT="${PORTAINER_HTTP_PORT:-8084}"
+PGADMIN_PORT="${PGADMIN_HTTP_PORT:-8085}"
 POSTGRES_WAIT_TIMEOUT="${POSTGRES_WAIT_TIMEOUT:-120}"
 CONTAINER_WAIT_TIMEOUT="${CONTAINER_WAIT_TIMEOUT:-120}"
 
@@ -64,7 +66,45 @@ FEEDS_HOST=feeds.localhost
 FEEDS_ALT_HOST=feeds.sigmalocal
 BLOG_HOST=blog.localhost
 BLOG_ALT_HOST=blog.sigmalocal
+PORTAINER_HOST=portainer.localhost
+PORTAINER_ALT_HOST=portainer.sigmalocal
+PGADMIN_HOST=pgadmin.localhost
+PGADMIN_ALT_HOST=pgadmin.sigmalocal
 CADDY_HTTP_PORT=80
+EOF
+
+  cat > "${STACK_ROOT}/portainer/.env" <<EOF
+PORTAINER_HTTP_PORT=${PORTAINER_PORT}
+EOF
+
+  cat > "${STACK_ROOT}/pgadmin/.env" <<EOF
+PGADMIN_HTTP_PORT=${PGADMIN_PORT}
+PGADMIN_DEFAULT_EMAIL=admin@example.com
+PGADMIN_DEFAULT_PASSWORD=test-pgadmin
+PGADMIN_CONFIG_SERVER_MODE=True
+PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED=False
+
+PGADMIN_SERVER_HOST=shared-postgres
+PGADMIN_SERVER_PORT=5432
+PGADMIN_SERVER_USERNAME=postgres
+PGADMIN_SERVER_PASSWORD=test-postgres-admin
+EOF
+
+  cat > "${STACK_ROOT}/pgadmin/servers.json" <<'EOF'
+{
+  "Servers": {
+    "1": {
+      "Name": "shared-postgres",
+      "Group": "Servers",
+      "Host": "shared-postgres",
+      "Port": 5432,
+      "MaintenanceDB": "postgres",
+      "Username": "postgres",
+      "Password": "test-postgres-admin",
+      "SSLMode": "prefer"
+    }
+  }
+}
 EOF
 
   cat > "${STACK_ROOT}/go-blog/.env" <<EOF
@@ -127,6 +167,47 @@ wait_for_container() {
   die "Container '${name}' did not start in time"
 }
 
+wait_for_healthy() {
+  local name="$1"
+  local timeout="${2:-${CONTAINER_WAIT_TIMEOUT}}"
+  log "Waiting for container '${name}' to become healthy (timeout: ${timeout}s)"
+  local deadline=$((SECONDS + timeout))
+  while (( SECONDS < deadline )); do
+    local health
+    health="$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "${name}" 2>/dev/null || true)"
+    if [[ "${health}" == "healthy" ]]; then
+      log "Container '${name}' is healthy"
+      return 0
+    fi
+    sleep 1
+  done
+  die "Container '${name}' did not become healthy in time"
+}
+
+init_portainer_admin() {
+  log "Ensuring Portainer admin user exists"
+  local deadline=$((SECONDS + CONTAINER_WAIT_TIMEOUT))
+  local status="000"
+
+  while (( SECONDS < deadline )); do
+    status="$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://127.0.0.1:${PORTAINER_PORT}/api/users/admin/init" \
+      -H 'Content-Type: application/json' \
+      -d '{"Username":"admin","Password":"test-portainer-admin-password"}' || true)"
+    case "${status}" in
+      200|204|409|422)
+        case "${status}" in
+          200|204) log "Portainer admin user created" ;;
+          *) log "Portainer admin user already exists" ;;
+        esac
+        return 0
+        ;;
+    esac
+    sleep 2
+  done
+
+  die "Failed to initialize Portainer admin user (HTTP ${status})"
+}
+
 verify_postgres_databases() {
   log "Verifying PostgreSQL databases and users"
   docker exec shared-postgres psql -U postgres -d postgres -tAc \
@@ -162,6 +243,13 @@ main() {
   compose_up go-blog
   wait_for_container go-blog
   seed_go_blog_users
+
+  compose_up pgadmin
+  wait_for_healthy pgadmin
+
+  compose_up portainer
+  wait_for_container portainer
+  init_portainer_admin
 
   compose_up reverse-proxy
   wait_for_container reverse-proxy

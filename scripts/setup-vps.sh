@@ -14,7 +14,7 @@ DEPLOY_ROOT="${DEPLOY_ROOT:-/opt/projects}"
 DOCKER_NETWORK="${DOCKER_NETWORK:-projects-net}"
 SWAP_SIZE_GB="${SWAP_SIZE_GB:-2}"
 
-PROJECTS=(postgresql freshrss static-server go-blog reverse-proxy)
+PROJECTS=(postgresql freshrss static-server go-blog pgadmin portainer reverse-proxy)
 
 log() { printf '[setup-vps] %s\n' "$*"; }
 die() { log "ERROR: $*"; exit 1; }

@@ -6,6 +6,10 @@ const freshrssPort = process.env.FRESHRSS_HTTP_PORT ?? '8081';
 const freshrssUrl = `http://127.0.0.1:${freshrssPort}`;
 const goBlogPort = process.env.GO_BLOG_HTTP_PORT ?? '8083';
 const goBlogUrl = `http://127.0.0.1:${goBlogPort}`;
+const portainerPort = process.env.PORTAINER_HTTP_PORT ?? '8084';
+const portainerUrl = `http://127.0.0.1:${portainerPort}`;
+const pgadminPort = process.env.PGADMIN_HTTP_PORT ?? '8085';
+const pgadminUrl = `http://127.0.0.1:${pgadminPort}`;
 
 test.describe('Infrastructure stack', () => {
   test('PostgreSQL is healthy and databases are accessible', () => {
@@ -64,6 +68,41 @@ test.describe('Infrastructure stack', () => {
     expect(response?.ok()).toBeTruthy();
     await expect(page).toHaveTitle(/Go Blog/i);
     await expect(page.locator('body')).toContainText(/Go Blog/i);
+  });
+
+  test('Portainer container is running', () => {
+    const status = execFileSync(
+      'docker',
+      ['inspect', '--format', '{{.State.Status}}', 'portainer'],
+      { encoding: 'utf8' },
+    ).trim();
+
+    expect(status).toBe('running');
+  });
+
+  test('pgAdmin container is running', () => {
+    const status = execFileSync(
+      'docker',
+      ['inspect', '--format', '{{.State.Status}}', 'pgadmin'],
+      { encoding: 'utf8' },
+    ).trim();
+
+    expect(status).toBe('running');
+  });
+
+  test('Portainer serves the web UI', async ({ page }) => {
+    const response = await page.goto(`${portainerUrl}/`, { waitUntil: 'domcontentloaded' });
+
+    expect(response?.ok()).toBeTruthy();
+    await expect(page.locator('body')).toContainText(/portainer/i);
+  });
+
+  test('pgAdmin serves the login page', async ({ page }) => {
+    const response = await page.goto(`${pgadminUrl}/login`, { waitUntil: 'networkidle' });
+
+    expect(response?.ok()).toBeTruthy();
+    await expect(page).toHaveTitle(/pgAdmin/i);
+    await expect(page.getByRole('textbox', { name: /email address \/ username/i })).toBeVisible();
   });
 
   test('static server hosts generated RSS feeds', async ({ request }) => {

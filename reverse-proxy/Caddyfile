@@ -9,3 +9,11 @@ http://{$FEEDS_HOST:feeds.localhost}, http://{$FEEDS_ALT_HOST:feeds.sigmalocal} 
 http://{$BLOG_HOST:blog.localhost}, http://{$BLOG_ALT_HOST:blog.sigmalocal} {
 	reverse_proxy go-blog:8083
 }
+
+http://{$PORTAINER_HOST:portainer.localhost}, http://{$PORTAINER_ALT_HOST:portainer.sigmalocal} {
+	reverse_proxy portainer:9000
+}
+
+http://{$PGADMIN_HOST:pgadmin.localhost}, http://{$PGADMIN_ALT_HOST:pgadmin.sigmalocal} {
+	reverse_proxy pgadmin:80
+}
