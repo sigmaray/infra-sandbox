@@ -39,6 +39,17 @@ jobs:
           STATIC_SERVER_CONTENT_DIR: ${{ env.DEPLOY_ROOT }}/static-server/content
         run: npx playwright test
 
+      - name: Run go-blog Playwright tests
+        env:
+          CI: true
+          SKIP_DOCKER_SETUP: '1'
+          GO_BLOG_HTTP_PORT: '8083'
+        run: |
+          cd go-blog
+          npm ci
+          npx playwright install chromium
+          npm test
+
       - name: Upload Playwright report
         if: failure()
         uses: actions/upload-artifact@v4
